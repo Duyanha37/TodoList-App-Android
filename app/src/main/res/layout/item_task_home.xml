@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="98dp"
+    android:layout_marginBottom="8dp"
+    android:padding="12dp"
+    android:orientation="vertical"
+    android:background="@drawable/bg_card">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <CheckBox
+            android:id="@+id/checkTask"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:buttonTint="#111111"/>
+
+        <LinearLayout
+            android:id="@+id/layoutTaskContent"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/txtTaskName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Fix login page bug"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="#111111"/>
+
+            <TextView
+                android:id="@+id/txtTaskInfo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="5:00 PM · Website Redesign"
+                android:textSize="12sp"
+                android:textColor="#999999"/>
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/btnTaskMenu"
+            android:layout_width="30dp"
+            android:layout_height="36dp"
+            android:gravity="center"
+            android:text="⋮"
+            android:textSize="22sp"
+            android:textColor="#111111"/>
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/txtCategory"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end"
+        android:layout_marginEnd="28dp"
+        android:paddingStart="10dp"
+        android:paddingEnd="10dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
+        android:text="● Work"
+        android:textSize="12sp"
+        android:textColor="#777777"
+        android:background="@drawable/bg_outline"/>
+</LinearLayout>

@@ -1,0 +1,78 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="375dp"
+    android:height="300dp"
+    android:viewportWidth="375"
+    android:viewportHeight="300">
+
+    <!-- Base Premium Black Header Background -->
+    <path
+        android:fillColor="#111111"
+        android:pathData="M 0,0 L 375,0 L 375,300 L 0,300 Z" />
+
+    <!-- Dark Charcoal Fluid Upper Layer -->
+    <path
+        android:fillColor="#1C1C22"
+        android:pathData="M 0,0 L 190,0 C 170,40 185,85 230,105 C 275,125 290,160 280,195 C 270,225 235,240 180,230 C 130,220 85,180 70,140 C 55,100 25,70 0,65 Z" />
+
+    <!-- Sleek Charcoal Mid Wave Layer -->
+    <path
+        android:fillColor="#25252D"
+        android:pathData="M 0,110 C 60,110 120,135 150,175 C 180,215 250,225 320,195 C 350,180 370,150 375,130 L 375,300 L 0,300 Z" />
+
+    <!-- Deep Accent Lower Fluid Curve -->
+    <path
+        android:fillColor="#32323D"
+        android:pathData="M 60,300 C 120,250 180,260 240,220 C 285,190 340,195 375,220 L 375,300 L 0,300 Z" />
+
+    <!-- Floating Organic Circles / Dots -->
+    <!-- Bubble 1: Top right small -->
+    <path
+        android:fillColor="#23232B"
+        android:pathData="M 330,70 m -14,0 a 14,14 0 1,0 28,0 a 14,14 0 1,0 -28,0" />
+
+    <!-- Bubble 2: Top accent -->
+    <path
+        android:fillColor="#383844"
+        android:pathData="M 180,65 m -7,0 a 7,7 0 1,0 14,0 a 7,7 0 1,0 -14,0" />
+
+    <!-- Bubble 3: Upper right medium -->
+    <path
+        android:fillColor="#1F1F26"
+        android:pathData="M 290,105 m -24,0 a 24,24 0 1,0 48,0 a 24,24 0 1,0 -48,0" />
+
+    <!-- Bubble 4: Center-right medium -->
+    <path
+        android:fillColor="#2B2B34"
+        android:pathData="M 215,120 m -18,0 a 18,18 0 1,0 36,0 a 18,18 0 1,0 -36,0" />
+
+    <!-- Bubble 5: Large prominent bubble -->
+    <path
+        android:fillColor="#22222A"
+        android:pathData="M 305,170 m -30,0 a 30,30 0 1,0 60,0 a 30,30 0 1,0 -60,0" />
+
+    <!-- Bubble 6: Lower center bubble -->
+    <path
+        android:fillColor="#282832"
+        android:pathData="M 220,190 m -22,0 a 22,22 0 1,0 44,0 a 22,22 0 1,0 -44,0" />
+
+    <!-- Bubble 7: Lower left bubble -->
+    <path
+        android:fillColor="#1E1E25"
+        android:pathData="M 150,215 m -12,0 a 12,12 0 1,0 24,0 a 12,12 0 1,0 -24,0" />
+
+    <!-- Bubble 8: Right edge bubble -->
+    <path
+        android:fillColor="#25252E"
+        android:pathData="M 360,185 m -14,0 a 14,14 0 1,0 28,0 a 14,14 0 1,0 -28,0" />
+
+    <!-- Bubble 9: Small accent left -->
+    <path
+        android:fillColor="#33333E"
+        android:pathData="M 80,105 m -6,0 a 6,6 0 1,0 12,0 a 6,6 0 1,0 -12,0" />
+
+    <!-- Bottom Wave Transition to White Form -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 0,240 C 90,225 170,235 240,268 C 295,290 340,285 375,268 L 375,300 L 0,300 Z" />
+
+</vector>

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fitsSystemWindows="true"
@@ -10,6 +11,7 @@
         android:layout_height="match_parent"
         android:orientation="vertical">
 
+        <!-- HEADER -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="64dp"
@@ -34,7 +36,8 @@
                 android:gravity="center"
                 android:text="⌕"
                 android:textSize="32sp"
-                android:textColor="#111111"/>
+                android:textColor="#111111"
+                android:contentDescription="Search tasks"/>
 
             <TextView
                 android:id="@+id/btnFilter"
@@ -43,7 +46,9 @@
                 android:gravity="center"
                 android:text="☰"
                 android:textSize="23sp"
-                android:textColor="#111111"/>
+                android:textColor="#111111"
+                android:contentDescription="Filter tasks"/>
+
         </LinearLayout>
 
         <View
@@ -51,6 +56,7 @@
             android:layout_height="1dp"
             android:background="#EEEEEE"/>
 
+        <!-- THỐNG KÊ -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="82dp"
@@ -67,7 +73,7 @@
                 android:layout_weight="1"
                 android:gravity="center"
                 android:background="@drawable/bg_card"
-                android:text="Today\n2"
+                android:text="Today\n0"
                 android:textSize="15sp"
                 android:textColor="#111111"/>
 
@@ -79,7 +85,7 @@
                 android:layout_marginStart="10dp"
                 android:gravity="center"
                 android:background="@drawable/bg_card"
-                android:text="Upcoming\n5"
+                android:text="Upcoming\n0"
                 android:textSize="15sp"
                 android:textColor="#111111"/>
 
@@ -91,15 +97,18 @@
                 android:layout_marginStart="10dp"
                 android:gravity="center"
                 android:background="@drawable/bg_card"
-                android:text="Overdue\n2"
+                android:text="Overdue\n0"
                 android:textSize="15sp"
                 android:textColor="#DD0000"/>
+
         </LinearLayout>
 
+        <!-- DANH SÁCH TASK -->
         <ScrollView
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1">
+            android:layout_weight="1"
+            android:fillViewport="true">
 
             <LinearLayout
                 android:id="@+id/layoutTaskList"
@@ -110,11 +119,15 @@
                 android:paddingTop="8dp"
                 android:paddingBottom="90dp"
                 android:orientation="vertical"/>
+
         </ScrollView>
 
+        <!-- THANH ĐIỀU HƯỚNG -->
         <include layout="@layout/bottom_nav_tasks"/>
+
     </LinearLayout>
 
+    <!-- NÚT THÊM TASK -->
     <TextView
         android:id="@+id/btnAddTask"
         android:layout_width="56dp"
@@ -127,5 +140,7 @@
         android:textSize="35sp"
         android:textColor="#FFFFFF"
         android:background="@drawable/bg_circle"
+        android:contentDescription="Add task"
         android:elevation="6dp"/>
+
 </FrameLayout>

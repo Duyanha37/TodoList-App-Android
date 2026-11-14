@@ -1,5 +1,6 @@
 package com.example.todolist_app;
 
+import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 import android.text.InputType;
 import android.util.Patterns;
@@ -94,8 +95,8 @@ public class SignUpActivity extends AppCompatActivity {
         if (password.trim().isEmpty()) {
             showError(tvPasswordError, "Mời nhập mật khẩu.");
             valid = false;
-        } else if (password.length() < 6) {
-            showError(tvPasswordError, "Mật khẩu phải chứa ít nhất 6 ký tự.");
+        } else if (!password.matches(regexPassword)) {
+            showError(tvPasswordError, "Mật khẩu phải chứa ít nhất 8 ký tự, bao gồm cả chữ và số.");
             valid = false;
         }
 
@@ -110,8 +111,22 @@ public class SignUpActivity extends AppCompatActivity {
         if (!valid) {
             return;
         }
-        //Chưa xử lý thêm dữ liệu vào db
-        Toast.makeText(this, "Account created successfully.", Toast.LENGTH_SHORT).show();
+
+        SQLiteDatabase db = new DatabaseHelper(this).getWritableDatabase();
+        UserDao userDao = new UserDao(db);
+        if(userDao.findByEmail(email.toLowerCase()) != null) {
+            showError(tvEmailError, "Email đã được sử dụng.");
+            db.close();
+            return;
+        } else {
+            User user = new User();
+            user.setFullname(fullName);
+            user.setEmail(email.toLowerCase());
+            user.setPassword(password);
+            userDao.insert(user);
+            db.close();
+        }
+        Toast.makeText(this, "Đăng ký thành công!.", Toast.LENGTH_SHORT).show();
         finish();
     }
 

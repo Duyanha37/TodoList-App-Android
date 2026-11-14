@@ -11,7 +11,7 @@ import java.util.UUID;
 import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
-
+//Class chứa function lưu dữ liệu db
 public class TaskStore {
 
     public static final String[] CATEGORIES = {

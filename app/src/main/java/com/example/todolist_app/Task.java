@@ -1,13 +1,15 @@
 package com.example.todolist_app;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 
 public class Task {
     private int id;
     private int userId;
-    private int categoriesId;
+    private int projectId;
     private String title;
     private String description;
+    private ArrayList<String> comments;
     private LocalDate date;
     private String priority;
     private String status;
@@ -28,12 +30,12 @@ public class Task {
         this.userId = userId;
     }
 
-    public int getCategoriesId() {
-        return categoriesId;
+    public int getProjectId() {
+        return projectId;
     }
 
-    public void setCategoriesId(int categoriesId) {
-        this.categoriesId = categoriesId;
+    public void setProjectId(int projectId) {
+        this.projectId = projectId;
     }
 
     public String getTitle() {
@@ -50,6 +52,14 @@ public class Task {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public ArrayList<String> getComments() {
+        return comments;
+    }
+
+    public void setComments(ArrayList<String> comments) {
+        this.comments = comments;
     }
 
     public LocalDate getDate() {

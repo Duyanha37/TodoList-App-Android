@@ -104,11 +104,11 @@
         </LinearLayout>
 
         <!-- DANH SÁCH TASK -->
-        <ScrollView
+        <androidx.recyclerview.widget.RecyclerView
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:fillViewport="true">
+            >
 
             <LinearLayout
                 android:id="@+id/layoutTaskList"
@@ -120,7 +120,7 @@
                 android:paddingBottom="90dp"
                 android:orientation="vertical"/>
 
-        </ScrollView>
+        </androidx.recyclerview.widget.RecyclerView>
 
         <!-- THANH ĐIỀU HƯỚNG -->
         <include layout="@layout/bottom_nav_tasks"/>

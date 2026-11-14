@@ -2,9 +2,8 @@ package com.example.todolist_app;
 
 public class User {
     private String id;
-    private String username;
+    private String fullname;
     private String password;
-    private String displayName;
     private String email;
     private String phone;
 
@@ -16,12 +15,12 @@ public class User {
         this.id = id;
     }
 
-    public String getUsername() {
-        return username;
+    public String getFullname() {
+        return fullname;
     }
 
-    public void setUsername(String username) {
-        this.username = username;
+    public void setFullname(String fullname) {
+        this.fullname = fullname;
     }
 
     public String getPassword() {
@@ -30,14 +29,6 @@ public class User {
 
     public void setPassword(String password) {
         this.password = password;
-    }
-
-    public String getDisplayName() {
-        return displayName;
-    }
-
-    public void setDisplayName(String displayName) {
-        this.displayName = displayName;
     }
 
     public String getEmail() {

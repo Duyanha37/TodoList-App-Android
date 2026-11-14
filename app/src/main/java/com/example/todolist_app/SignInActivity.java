@@ -1,6 +1,7 @@
 package com.example.todolist_app;
 
 import android.content.Intent;
+import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 import android.text.InputType;
 import android.text.TextUtils;
@@ -98,9 +99,18 @@ public class SignInActivity extends AppCompatActivity {
         if (!valid) {
             return;
         }
-        //Chỉ mới kiểm tra valid dữ liệu chưa xử lý lấy dữ liệu để xác minh
+        SQLiteDatabase db = new DatabaseHelper(this).getReadableDatabase();
+        UserDao userDao = new UserDao(db);
+        User user = userDao.Login(email.toLowerCase(), password);
+        db.close();
+        if (user == null) {
+            showError(tvEmailError, "Email hoặc mật khẩu không đúng.");
+            return;
+        }
         Toast.makeText(this, "Đăng nhập thành công.", Toast.LENGTH_SHORT).show();
-        startActivity(new Intent(this, MainActivity.class));
+        Intent itn = new Intent(this, MainActivity.class);
+        itn.putExtra("userId", user.getId());
+        startActivity(itn);
         finish();
     }
 

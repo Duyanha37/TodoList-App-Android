@@ -96,7 +96,7 @@
         </HorizontalScrollView>
 
         <!-- Danh sách -->
-        <ScrollView
+        <androidx.recyclerview.widget.RecyclerView
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
@@ -110,7 +110,7 @@
                 android:paddingEnd="16dp"
                 android:paddingBottom="100dp"
                 android:orientation="vertical"/>
-        </ScrollView>
+        </androidx.recyclerview.widget.RecyclerView>
     </LinearLayout>
 
     <TextView

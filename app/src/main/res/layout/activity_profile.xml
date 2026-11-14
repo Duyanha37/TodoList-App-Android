@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    android:background="#FFFFFF"
+    android:orientation="vertical">
+
+    <!-- Header -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="70dp"
+        android:gravity="center_vertical"
+        android:paddingStart="16dp"
+        android:text="Profile"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="#111111" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#EEEEEE" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <!-- Avatar, tên, email -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="210dp"
+                android:orientation="vertical"
+                android:gravity="center">
+
+                <ImageView
+                    android:layout_width="88dp"
+                    android:layout_height="88dp"
+                    android:src="@android:drawable/ic_menu_myplaces"
+                    android:padding="23dp"
+                    android:background="@drawable/bg_profile_avatar"
+                    android:contentDescription="Profile avatar"
+                    app:tint="#CCCCCC" />
+
+                <TextView
+                    android:id="@+id/txtProfileName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="Alex Morgan"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="#111111"/>
+
+                <TextView
+                    android:id="@+id/txtProfileEmail"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="alex.morgan@email.com"
+                    android:textSize="14sp"
+                    android:textColor="#888888"/>
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#EEEEEE"/>
+
+            <!-- Năm dòng cài đặt -->
+            <include
+                android:id="@+id/rowEditProfile"
+                layout="@layout/item_profile_row"/>
+
+            <include
+                android:id="@+id/rowNotifications"
+                layout="@layout/item_profile_row"/>
+
+            <include
+                android:id="@+id/rowTheme"
+                layout="@layout/item_profile_row"/>
+
+            <include
+                android:id="@+id/rowHelp"
+                layout="@layout/item_profile_row"/>
+
+            <include
+                android:id="@+id/rowAbout"
+                layout="@layout/item_profile_row"/>
+
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- Log Out -->
+    <Button
+        android:id="@+id/btnLogout"
+        android:layout_width="match_parent"
+        android:layout_height="55dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="26dp"
+        android:text="⇥   Log Out"
+        android:textAllCaps="false"
+        android:textSize="14sp"
+        android:textColor="#111111"
+        android:backgroundTint="#F5F5F5"/>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#EEEEEE"/>
+
+    <include layout="@layout/bottom_nav_profile"/>
+
+</LinearLayout>

@@ -24,6 +24,9 @@ import android.widget.PopupMenu;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.content.ContentValues;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -67,6 +70,7 @@ public class ProjectsActivity extends Activity {
         public int color;
         public boolean archived = false;
 
+        // Giữ để đọc tasks_json cũ; task hiện tại lấy từ TaskStore.
         public ArrayList<TaskData> tasks = new ArrayList<>();
 
         ProjectData(String name, int color, String deadline) {
@@ -84,7 +88,7 @@ public class ProjectsActivity extends Activity {
         }
 
         public int getPercent() {
-            if (tasks.size() == 0) return 0;
+            if (tasks.isEmpty()) return 0;
             return getDone() * 100 / tasks.size();
         }
     }
@@ -101,104 +105,127 @@ public class ProjectsActivity extends Activity {
         return bg;
     }
 
-    // Đọc dữ liệu từ máy
+
     public static void loadData(Context context) {
         projects.clear();
-
-        SharedPreferences pref = context.getSharedPreferences(
-                "project_data", Context.MODE_PRIVATE);
-
-        if (!pref.contains("projects")) {
-            createSamples();
-            saveData(context);
-            return;
-        }
+        TodoDatabaseHelper helper =
+                new TodoDatabaseHelper(context);
+        // Chuyển dữ liệu Projects cũ sang SQLite một lần
+        helper.migrateLegacyData();
+        SQLiteDatabase db = helper.getReadableDatabase();
+        Cursor cursor = db.rawQuery(
+                "SELECT * FROM projects ORDER BY id ASC",
+                null);
 
         try {
-            JSONArray arr = new JSONArray(
-                    pref.getString("projects", "[]"));
-
-            for (int i = 0; i < arr.length(); i++) {
-                JSONObject p = arr.getJSONObject(i);
-
+            while (cursor.moveToNext()) {
+                String name = cursor.getString(
+                        cursor.getColumnIndexOrThrow("name"));
+                int color = cursor.getInt(
+                        cursor.getColumnIndexOrThrow("color"));
+                String deadline = cursor.getString(
+                        cursor.getColumnIndexOrThrow("deadline"));
+                boolean archived = cursor.getInt(
+                        cursor.getColumnIndexOrThrow("archived")) == 1;
+                String tasksJson = cursor.getString(
+                        cursor.getColumnIndexOrThrow("tasks_json"));
                 ProjectData project = new ProjectData(
-                        p.getString("name"),
-                        p.getInt("color"),
-                        p.optString("deadline", "")
-                );
+                        name, color,
+                        deadline == null ? "" : deadline);
+                project.archived = archived;
+                JSONArray tasks = new JSONArray(
+                        tasksJson == null ? "[]" : tasksJson);
+                for (int i = 0; i < tasks.length(); i++) {
+                    JSONObject t = tasks.optJSONObject(i);
+                    if (t == null) continue;
 
-                project.archived = p.optBoolean("archived", false);
+                    TaskData task = new TaskData(
+                            t.optString("name"),
+                            t.optString("time"),
+                            t.optString("category", "Work"),
+                            t.optBoolean("done"));
 
-                JSONArray tasks = p.optJSONArray("tasks");
+                    task.status = t.optString(
+                            "status",
+                            task.done ? "Done" : "To Do");
 
-                if (tasks != null) {
-                    for (int j = 0; j < tasks.length(); j++) {
-                        JSONObject t = tasks.getJSONObject(j);
-
-                        TaskData task = new TaskData(
-                                t.getString("name"),
-                                t.optString("time", ""),
-                                t.optString("category", "Work"),
-                                t.optBoolean("done")
-                        );
-
-                        task.status = t.optString(
-                                "status", task.done ? "Done" : "To Do");
-
-                        project.tasks.add(task);
-                    }
+                    project.tasks.add(task);
                 }
-
                 projects.add(project);
             }
-
         } catch (Exception e) {
             e.printStackTrace();
+
+        } finally {
+            cursor.close();
+            helper.close();
         }
-    }
+        // Chỉ tạo Project mẫu trong lần đầu khởi tạo
+        SharedPreferences setup = context.getSharedPreferences(
+                "sqlite_project_setup",
+                Context.MODE_PRIVATE);
 
-    // Lưu dữ liệu vào máy
-    public static void saveData(Context context) {
-        JSONArray arr = new JSONArray();
+        if (!setup.getBoolean("initialized", false)) {
 
-        try {
-            for (ProjectData p : projects) {
-                JSONObject obj = new JSONObject();
-
-                obj.put("name", p.name);
-                obj.put("color", p.color);
-                obj.put("deadline", p.deadline);
-                obj.put("archived", p.archived);
-
-                JSONArray tasks = new JSONArray();
-
-                for (TaskData t : p.tasks) {
-                    JSONObject task = new JSONObject();
-
-                    task.put("name", t.name);
-                    task.put("time", t.time);
-                    task.put("category", t.category);
-                    task.put("status", t.status);
-                    task.put("done", t.done);
-
-                    tasks.put(task);
-                }
-
-                obj.put("tasks", tasks);
-                arr.put(obj);
+            if (projects.isEmpty()) {
+                createSamples();
+                saveData(context);
             }
 
-            SharedPreferences pref = context.getSharedPreferences(
-                    "project_data", Context.MODE_PRIVATE);
-
-            pref.edit()
-                    .putString("projects", arr.toString())
+            setup.edit()
+                    .putBoolean("initialized", true)
                     .apply();
-
-        } catch (Exception e) {
-            e.printStackTrace();
         }
     }
+
+
+    // Lưu metadata Project và tasks_json cũ vào SQLite.
+    // Tasks mới không ghi ở đây: chúng được lưu bằng TaskStore.
+
+    public static void saveData(Context context) {
+        TodoDatabaseHelper helper =
+                new TodoDatabaseHelper(context);
+        helper.migrateLegacyData();
+        SQLiteDatabase db = helper.getWritableDatabase();
+        db.beginTransaction();
+        try {
+            // Lưu lại danh sách Projects hiện tại
+            db.delete("projects", null, null);
+            for (ProjectData p : projects) {
+                ContentValues values = new ContentValues();
+                values.put("name", p.name);
+                values.put("color", p.color);
+                values.put("deadline", p.deadline);
+                values.put("archived", p.archived ? 1 : 0);
+                JSONArray tasks = new JSONArray();
+                for (TaskData t : p.tasks) {
+                    JSONObject obj = new JSONObject();
+                    obj.put("name", t.name);
+                    obj.put("time", t.time);
+                    obj.put("category", t.category);
+                    obj.put("status", t.status);
+                    obj.put("done", t.done);
+                    tasks.put(obj);
+                }
+                values.put("tasks_json", tasks.toString());
+                db.insertOrThrow("projects", null, values);
+            }
+            db.setTransactionSuccessful();
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "Cannot save projects", e);
+        } finally {
+            db.endTransaction();
+            helper.close();
+        }
+        context.getSharedPreferences(
+                        "sqlite_project_setup",
+                        Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean("initialized", true)
+                .apply();
+    }
+
 
     // Bốn Project mẫu
     static void createSamples() {
@@ -252,52 +279,112 @@ public class ProjectsActivity extends Activity {
 
         setContentView(R.layout.activity_projects);
 
+        View navHome = findViewById(R.id.navHome);
+
+        if (navHome != null) {
+            navHome.setOnClickListener(v -> {
+                Intent intent = new Intent(
+                        ProjectsActivity.this,
+                        MainActivity.class);
+
+                startActivity(intent);
+                finish();
+            });
+        }
+
+
+        View navCategories = findViewById(R.id.navCategories);
+        if (navCategories != null) {
+            navCategories.setOnClickListener(v -> {
+                Intent intent = new Intent(
+                        ProjectsActivity.this,
+                        CategoriesActivity.class);
+                startActivity(intent);
+                finish();
+            });
+        }
+
+        View navProfile = findViewById(R.id.navProfile);
+        if (navProfile != null) {
+            navProfile.setOnClickListener(v -> {
+                Intent intent = new Intent(
+                        ProjectsActivity.this,
+                        ProfileActivity.class);
+                startActivity(intent);
+                finish();
+            });
+        }
+
         layoutProjects = findViewById(R.id.layoutProjects);
-
-        loadData(this);
-        showProjects();
-
         findViewById(R.id.btnAdd).setOnClickListener(v ->
                 showProjectDialog(null));
-
         findViewById(R.id.btnAddTop).setOnClickListener(v ->
                 showProjectDialog(null));
-
         // Nhấn giữ nút cộng trên để khôi phục Project
         findViewById(R.id.btnAddTop).setOnLongClickListener(v -> {
             showArchived();
             return true;
         });
-
-        // Kết nối Categories nếu Bottom Nav có ID navCategories
-        int navId = getResources().getIdentifier(
-                "navCategories", "id", getPackageName());
-
-        if (navId != 0) {
-            View nav = findViewById(navId);
-            if (nav != null) {
-                nav.setOnClickListener(v -> {
-                    Intent intent = new Intent(
-                            this, CategoriesActivity.class);
-                    startActivity(intent);
-                });
-            }
-        }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        if (layoutProjects != null) showProjects();
+        if (layoutProjects != null) {
+            loadData(this);
+            showProjects();
+        }
     }
+
 
     // Hiển thị các project chưa Archive
     void showProjects() {
         layoutProjects.removeAllViews();
-
         for (ProjectData p : projects) {
             if (!p.archived) addProjectCard(p);
         }
+    }
+
+    // Thống kê Task trong bảng SQLite chung với Home
+    int[] thongKeTask(String projectName) {
+        JSONArray tasks = TaskStore.getTasks(this);
+        int total = 0;
+        int completed = 0;
+
+        for (int i = 0; i < tasks.length(); i++) {
+            JSONObject task = tasks.optJSONObject(i);
+            if (task == null) continue;
+
+            if (projectName.equals(task.optString("project"))) {
+                total++;
+                if (TaskStore.isDone(task)) completed++;
+            }
+        }
+        return new int[]{total, completed};
+    }
+
+    // Cập nhật liên kết Project của Task trong SQLite
+    // newName = "" nghĩa là bỏ liên kết, vẫn giữ Task ở Home.
+    void capNhatProjectTrongTasks(String oldName, String newName) {
+        TodoDatabaseHelper helper = new TodoDatabaseHelper(this);
+        SQLiteDatabase db = helper.getWritableDatabase();
+        try {
+            ContentValues values = new ContentValues();
+            values.put("project", newName);
+            db.update("tasks", values, "project = ?",
+                    new String[]{oldName});
+        } finally {
+            helper.close();
+        }
+    }
+
+    boolean trungTenProject(String name, ProjectData except) {
+        for (ProjectData p : projects) {
+            if (p != except && p.name.equalsIgnoreCase(name)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // Tạo một thẻ project
@@ -313,14 +400,19 @@ public class ProjectsActivity extends Activity {
         ProgressBar progress = item.findViewById(R.id.progressProject);
 
         txtName.setText(p.name);
-        txtCount.setText(p.getDone() + "/" +
-                p.tasks.size() + " tasks completed");
+        int[] stats = thongKeTask(p.name);
+        int total = stats[0];
+        int completed = stats[1];
+        txtCount.setText(completed + "/" +
+                total + " tasks completed");
+
 
         txtDeadline.setText(p.deadline.isEmpty()
                 ? "" : "Due " + p.deadline);
 
         dot.setBackground(circle(p.color));
-        progress.setProgress(p.getPercent());
+        progress.setProgress(
+                total == 0 ? 0 : completed * 100 / total);
 
         layoutProjects.addView(item);
 
@@ -364,11 +456,13 @@ public class ProjectsActivity extends Activity {
                     new AlertDialog.Builder(this)
                             .setTitle("Delete Project")
                             .setMessage("Delete " + p.name +
-                                    " and all its tasks?")
+                                    "? Tasks will remain in Home.")
                             .setNegativeButton("Cancel", null)
                             .setPositiveButton("Delete", (d, w) -> {
+                                // Lưu Project trước, rồi bỏ liên kết Task
                                 projects.remove(p);
                                 saveData(this);
+                                capNhatProjectTrongTasks(p.name, "");
                                 showProjects();
                             }).show();
                 }
@@ -414,7 +508,7 @@ public class ProjectsActivity extends Activity {
             selectedDate[0] = oldProject.deadline;
 
             txtPreviewCount.setText(
-                    oldProject.tasks.size() + " tasks   ›");
+                    thongKeTask(oldProject.name)[0] + " tasks   ›");
 
             if (!selectedDate[0].isEmpty()) {
                 btnDeadline.setText(selectedDate[0]);
@@ -540,16 +634,29 @@ public class ProjectsActivity extends Activity {
                 return;
             }
 
+            if (trungTenProject(name, oldProject)) {
+                edtName.setError("Project already exists");
+                return;
+            }
+
             if (oldProject == null) {
                 projects.add(new ProjectData(
                         name, selectedColor[0], selectedDate[0]));
+                saveData(this);
             } else {
+                String oldName = oldProject.name;
                 oldProject.name = name;
                 oldProject.color = selectedColor[0];
                 oldProject.deadline = selectedDate[0];
+
+                saveData(this);
+
+                // Đổi tên Project thì cập nhật các Task liên quan
+                if (!oldName.equals(name)) {
+                    capNhatProjectTrongTasks(oldName, name);
+                }
             }
 
-            saveData(this);
             showProjects();
             dialog.dismiss();
         });

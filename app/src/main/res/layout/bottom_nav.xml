@@ -1,12 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="64dp"
     android:orientation="horizontal"
     android:gravity="center"
     android:background="#FFFFFF">
 
+    <!-- HOME -->
     <LinearLayout
+        android:id="@+id/navHome"
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
@@ -28,7 +31,9 @@
             android:textColor="#888888"/>
     </LinearLayout>
 
+    <!-- PROJECTS -->
     <LinearLayout
+        android:id="@+id/navProjects"
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
@@ -57,7 +62,9 @@
             android:background="@drawable/bg_circle"/>
     </LinearLayout>
 
+    <!-- CATEGORIES -->
     <LinearLayout
+        android:id="@+id/navCategories"
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
@@ -68,7 +75,6 @@
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:src="@drawable/tag"
-            android:id="@+id/navCategories"
             android:contentDescription="Categories"/>
 
         <TextView
@@ -80,7 +86,9 @@
             android:textColor="#888888"/>
     </LinearLayout>
 
+    <!-- PROFILE -->
     <LinearLayout
+        android:id="@+id/navProfile"
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
@@ -101,4 +109,5 @@
             android:textSize="12sp"
             android:textColor="#888888"/>
     </LinearLayout>
+
 </LinearLayout>

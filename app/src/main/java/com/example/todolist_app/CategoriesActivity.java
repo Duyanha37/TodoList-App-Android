@@ -22,6 +22,9 @@ import android.widget.LinearLayout;
 import android.widget.PopupMenu;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.content.ContentValues;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -90,6 +93,10 @@ public class CategoriesActivity extends Activity {
                 View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
 
         setContentView(R.layout.activity_categories);
+        findViewById(R.id.navProfile).setOnClickListener(v -> {
+            startActivity(new Intent(
+                    CategoriesActivity.this, ProfileActivity.class));
+        });
         findViewById(R.id.navHome).setOnClickListener(v -> {
             Intent intent = new Intent(
                     CategoriesActivity.this,
@@ -100,9 +107,6 @@ public class CategoriesActivity extends Activity {
 
 
         layoutCategories = findViewById(R.id.layoutCategories);
-
-        docDuLieu();
-        hienThiCategories();
 
         // Hai nút cộng
         findViewById(R.id.btnAddCategory)
@@ -125,6 +129,36 @@ public class CategoriesActivity extends Activity {
         });
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        if (layoutCategories != null) {
+            docDuLieu();
+            hienThiCategories();
+        }
+    }
+
+
+    void capNhatCategoryTrongTasks(String tenCu, String tenMoi) {
+
+        TodoDatabaseHelper helper =
+                new TodoDatabaseHelper(this);
+
+        SQLiteDatabase db = helper.getWritableDatabase();
+
+        ContentValues values = new ContentValues();
+        values.put("category", tenMoi);
+
+        db.update(
+                "tasks",
+                values,
+                "category = ?",
+                new String[]{tenCu});
+
+        helper.close();
+    }
+
     // Tạo dữ liệu mẫu theo ảnh
     void taoDuLieuMau() {
         categories.add(new CategoryData(
@@ -145,61 +179,120 @@ public class CategoriesActivity extends Activity {
 
     // Lưu dữ liệu
     void luuDuLieu() {
-        JSONArray array = new JSONArray();
+        TodoDatabaseHelper helper =
+                new TodoDatabaseHelper(this);
 
+        helper.migrateLegacyData();
+        SQLiteDatabase db = helper.getWritableDatabase();
+        db.beginTransaction();
         try {
+            // Xóa danh sách cũ trong bảng Categories
+            db.delete("categories", null, null);
+            // Lưu lại danh sách hiện tại
             for (CategoryData c : categories) {
-                JSONObject obj = new JSONObject();
-
-                obj.put("name", c.name);
-                obj.put("icon", c.icon);
-                obj.put("color", c.color);
-                obj.put("tasks", c.tasks);
-
-                array.put(obj);
+                ContentValues values = new ContentValues();
+                values.put("name", c.name);
+                values.put("icon", c.icon);
+                values.put("color", c.color);
+                values.put("tasks", c.tasks);
+                db.insertOrThrow(
+                        "categories", null, values);
             }
-
-            SharedPreferences pref =
-                    getSharedPreferences("category_data", MODE_PRIVATE);
-
-            pref.edit()
-                    .putString("categories", array.toString())
-                    .apply();
-
-        } catch (Exception e) {
-            e.printStackTrace();
+            db.setTransactionSuccessful();
+        } finally {
+            db.endTransaction();
+            helper.close();
         }
+        // Đánh dấu đã khởi tạo Categories
+        getSharedPreferences(
+                "sqlite_category_setup", MODE_PRIVATE)
+                .edit()
+                .putBoolean("initialized", true)
+                .apply();
+    }
+
+    int demTaskTheoCategory(String categoryName) {
+        TodoDatabaseHelper helper =
+                new TodoDatabaseHelper(this);
+        SQLiteDatabase db = helper.getReadableDatabase();
+        Cursor cursor = db.rawQuery(
+                "SELECT COUNT(*) FROM tasks WHERE category = ?",
+                new String[]{categoryName});
+        int count = 0;
+        try {
+            if (cursor.moveToFirst()) {
+                count = cursor.getInt(0);
+            }
+        } finally {
+            cursor.close();
+            helper.close();
+        }
+        return count;
     }
 
     // Đọc dữ liệu
     void docDuLieu() {
-        SharedPreferences pref =
-                getSharedPreferences("category_data", MODE_PRIVATE);
 
-        if (!pref.contains("categories")) {
-            taoDuLieuMau();
-            luuDuLieu();
-            return;
-        }
+        categories.clear();
+
+        TodoDatabaseHelper helper =
+                new TodoDatabaseHelper(this);
+
+        // Chuyển dữ liệu SharedPreferences cũ sang SQLite
+        helper.migrateLegacyData();
+
+        SQLiteDatabase db = helper.getReadableDatabase();
+
+        Cursor cursor = db.rawQuery(
+                "SELECT * FROM categories ORDER BY id ASC",
+                null);
 
         try {
-            JSONArray array = new JSONArray(
-                    pref.getString("categories", "[]"));
+            while (cursor.moveToNext()) {
 
-            for (int i = 0; i < array.length(); i++) {
-                JSONObject obj = array.getJSONObject(i);
+                String name = cursor.getString(
+                        cursor.getColumnIndexOrThrow("name"));
+
+                String icon = cursor.getString(
+                        cursor.getColumnIndexOrThrow("icon"));
+
+                int color = cursor.getInt(
+                        cursor.getColumnIndexOrThrow("color"));
+
+                int tasks = cursor.getInt(
+                        cursor.getColumnIndexOrThrow("tasks"));
 
                 categories.add(new CategoryData(
-                        obj.getString("name"),
-                        obj.getString("icon"),
-                        obj.getInt("color"),
-                        obj.getInt("tasks")
-                ));
+                        name, icon, color, tasks));
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } finally {
+            cursor.close();
+            helper.close();
+        }
+
+        // Chỉ tạo danh mục mẫu một lần khi chưa có dữ liệu
+        SharedPreferences setup =
+                getSharedPreferences(
+                        "sqlite_category_setup", MODE_PRIVATE);
+
+        if (!setup.getBoolean("initialized", false)) {
+
+            if (categories.isEmpty()) {
+                taoDuLieuMau();
+                luuDuLieu();
+            }
+
+            setup.edit()
+                    .putBoolean("initialized", true)
+                    .apply();
+        }
+
+        // Cập nhật số Task thực tế từ SQLite
+        for (CategoryData c : categories) {
+            c.tasks = demTaskTheoCategory(c.name);
         }
     }
+
 
     void hienThiCategories() {
         layoutCategories.removeAllViews();
@@ -220,12 +313,26 @@ public class CategoriesActivity extends Activity {
 
         txtIcon.setText(c.icon);
         txtIcon.setBackground(circle(c.color));
-
         txtName.setText(c.name);
+        c.tasks = demTaskTheoCategory(c.name);
         txtCount.setText(c.tasks +
                 (c.tasks == 1 ? " task" : " tasks"));
 
+
         layoutCategories.addView(item);
+
+        item.setOnClickListener(v -> {
+            Intent intent = new Intent(
+                    CategoriesActivity.this,
+                    CategoryDetailsActivity.class);
+
+            intent.putExtra("categoryName", c.name);
+            intent.putExtra("categoryIcon", c.icon);
+            intent.putExtra("categoryColor", c.color);
+
+            startActivity(intent);
+        });
+
 
         // Nhấn ba chấm
         btnMenu.setOnClickListener(v -> {
@@ -301,7 +408,8 @@ public class CategoriesActivity extends Activity {
             selectedIcon[0] = category.icon;
 
             txtPreviewCount.setText(category.tasks +
-                    (category.tasks == 1 ? " task" : " tasks") + "   ›");
+                    (category.tasks == 1
+                            ? " task" : " tasks") + "   ›");
         }
 
         // Cập nhật preview
@@ -437,14 +545,21 @@ public class CategoriesActivity extends Activity {
                 return;
             }
 
+
             if (category == null) {
                 categories.add(new CategoryData(
                         name, selectedIcon[0],
                         selectedColor[0], 0));
+
             } else {
+                String tenCu = category.name;
                 category.name = name;
                 category.icon = selectedIcon[0];
                 category.color = selectedColor[0];
+
+                if (!tenCu.equals(name)) {
+                    capNhatCategoryTrongTasks(tenCu, name);
+                }
             }
 
             luuDuLieu();

@@ -8,6 +8,9 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Locale;
 import java.util.UUID;
+import android.content.ContentValues;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 
 public class TaskStore {
 
@@ -76,35 +79,79 @@ public class TaskStore {
         return task;
     }
 
-    public static JSONArray getTasks(Context context) {
-        SharedPreferences pref = context.getSharedPreferences(
-                "task_storage", Context.MODE_PRIVATE);
 
-        if (!pref.contains("tasks")) {
-            JSONArray sample = samples();
-            saveTasks(context, sample);
-            return sample;
-        }
+    public static JSONArray getTasks(Context context) {
+        TodoDatabaseHelper helper =
+                new TodoDatabaseHelper(context);
+        // Chuyển dữ liệu cũ khi sử dụng lần đầu
+        helper.migrateLegacyData();
+        SQLiteDatabase db = helper.getReadableDatabase();
+        JSONArray tasks = new JSONArray();
+        Cursor cursor = db.rawQuery(
+                "SELECT * FROM tasks ORDER BY rowid ASC",
+                null);
 
         try {
-            return new JSONArray(pref.getString("tasks", "[]"));
+            while (cursor.moveToNext()) {
+                JSONObject task = new JSONObject();
+                task.put("id",
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow("id")));
+                task.put("name",
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow("name")));
+                task.put("description",
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow("description")));
+                task.put("date",
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow("date")));
+                task.put("time",
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow("time")));
+                task.put("category",
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow("category")));
+                task.put("project",
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow("project")));
+                task.put("status",
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow("status")));
+                String comments = cursor.getString(
+                        cursor.getColumnIndexOrThrow("comments"));
+                task.put("comments",
+                        new JSONArray(comments == null
+                                ? "[]" : comments));
+                tasks.put(task);
+            }
         } catch (Exception e) {
-            return new JSONArray();
+            e.printStackTrace();
+        } finally {
+            cursor.close();
+            helper.close();
         }
-    }
-
-    public static void saveTasks(Context context, JSONArray tasks) {
-        context.getSharedPreferences(
-                        "task_storage", Context.MODE_PRIVATE)
-                .edit()
-                .putString("tasks", tasks.toString())
-                .apply();
+        // Tạo dữ liệu mẫu đúng một lần nếu chưa có task
+        SharedPreferences setup = context.getSharedPreferences(
+                "sqlite_task_setup", Context.MODE_PRIVATE);
+        if (!setup.getBoolean("initialized", false)) {
+            if (tasks.length() == 0) {
+                tasks = samples();
+                saveTasks(context, tasks);
+            }
+            setup.edit()
+                    .putBoolean("initialized", true)
+                    .apply();
+        }
+        return tasks;
     }
 
     public static JSONObject find(Context context, String id) {
+
         JSONArray tasks = getTasks(context);
 
         for (int i = 0; i < tasks.length(); i++) {
+
             JSONObject task = tasks.optJSONObject(i);
 
             if (task != null &&
@@ -112,43 +159,84 @@ public class TaskStore {
                 return task;
             }
         }
+
         return null;
     }
 
-    public static void saveTask(Context context, JSONObject task) {
-        JSONArray tasks = getTasks(context);
-        JSONArray result = new JSONArray();
-        boolean found = false;
 
-        for (int i = 0; i < tasks.length(); i++) {
-            JSONObject old = tasks.optJSONObject(i);
-            if (old == null) continue;
+    public static void saveTasks(
+            Context context, JSONArray tasks) {
+        TodoDatabaseHelper helper =
+                new TodoDatabaseHelper(context);
+        SQLiteDatabase db = helper.getWritableDatabase();
+        db.beginTransaction();
 
-            if (old.optString("id").equals(task.optString("id"))) {
-                result.put(task);
-                found = true;
-            } else {
-                result.put(old);
+        try {
+            db.delete("tasks", null, null);
+            for (int i = 0; i < tasks.length(); i++) {
+                JSONObject task = tasks.optJSONObject(i);
+                if (task == null) continue;
+                ContentValues values = taskValues(task);
+                db.insertWithOnConflict(
+                        "tasks", null, values,
+                        SQLiteDatabase.CONFLICT_REPLACE);
             }
+            db.setTransactionSuccessful();
+        } finally {
+            db.endTransaction();
+            helper.close();
         }
-
-        if (!found) result.put(task);
-        saveTasks(context, result);
     }
 
+
+    private static ContentValues taskValues(JSONObject task) {
+        ContentValues values = new ContentValues();
+        values.put("id", task.optString("id"));
+        values.put("name", task.optString("name"));
+        values.put("description",
+                task.optString("description"));
+        values.put("date", task.optString("date"));
+        values.put("time", task.optString("time"));
+        values.put("category", task.optString("category"));
+        values.put("project", task.optString("project"));
+        values.put("status", task.optString("status"));
+        JSONArray comments = task.optJSONArray("comments");
+        values.put("comments",
+                comments == null ? "[]" : comments.toString());
+        return values;
+    }
+
+
+    public static void saveTask(
+            Context context, JSONObject task) {
+
+        TodoDatabaseHelper helper =
+                new TodoDatabaseHelper(context);
+
+        // Đảm bảo dữ liệu cũ đã chuyển trước khi ghi mới
+        helper.migrateLegacyData();
+        SQLiteDatabase db = helper.getWritableDatabase();
+        ContentValues values = taskValues(task);
+        db.insertWithOnConflict(
+                "tasks",
+                null,
+                values,
+                SQLiteDatabase.CONFLICT_REPLACE);
+        helper.close();
+    }
+
+
+
     public static void deleteTask(Context context, String id) {
-        JSONArray tasks = getTasks(context);
-        JSONArray result = new JSONArray();
-
-        for (int i = 0; i < tasks.length(); i++) {
-            JSONObject task = tasks.optJSONObject(i);
-
-            if (task != null &&
-                    !id.equals(task.optString("id"))) {
-                result.put(task);
-            }
-        }
-        saveTasks(context, result);
+        TodoDatabaseHelper helper =
+                new TodoDatabaseHelper(context);
+        helper.migrateLegacyData();
+        SQLiteDatabase db = helper.getWritableDatabase();
+        db.delete(
+                "tasks",
+                "id = ?",
+                new String[]{id});
+        helper.close();
     }
 
     public static boolean isDone(JSONObject task) {

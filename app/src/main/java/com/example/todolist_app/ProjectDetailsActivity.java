@@ -2,18 +2,19 @@ package com.example.todolist_app;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.os.Bundle;
 import android.view.View;
-import android.widget.ArrayAdapter;
-import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.PopupMenu;
-import android.widget.Spinner;
 import android.widget.TextView;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 public class ProjectDetailsActivity extends Activity {
 
@@ -59,54 +60,116 @@ public class ProjectDetailsActivity extends Activity {
 
         findViewById(R.id.btnBack).setOnClickListener(v -> finish());
 
-        findViewById(R.id.btnEdit).setOnClickListener(v ->
-                editProjectName());
+        findViewById(R.id.btnEdit)
+                .setOnClickListener(v -> editProjectName());
 
-        findViewById(R.id.btnAddTask).setOnClickListener(v ->
-                showTaskDialog(null));
+        // Thêm Task bằng TaskFormActivity
+        findViewById(R.id.btnAddTask).setOnClickListener(v -> {
+            Intent intent = new Intent(
+                    this, TaskFormActivity.class);
+
+            intent.putExtra("projectName", project.name);
+            startActivity(intent);
+        });
 
         filterAll.setOnClickListener(v -> changeFilter("All"));
-        filterTodo.setOnClickListener(v -> changeFilter("To Do"));
+
+        filterTodo.setOnClickListener(v ->
+                changeFilter("Not Started"));
+
         filterProgress.setOnClickListener(v ->
                 changeFilter("In Progress"));
-        filterDone.setOnClickListener(v -> changeFilter("Done"));
 
-        showDetails();
+        filterDone.setOnClickListener(v ->
+                changeFilter("Completed"));
+
+        changeFilter("All");
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        if (project != null && layoutTasks != null) {
+            showDetails();
+        }
+    }
+
+    // Lấy Task của Project từ SQLite
+    JSONArray getProjectTasks() {
+
+        JSONArray allTasks = TaskStore.getTasks(this);
+        JSONArray result = new JSONArray();
+
+        for (int i = 0; i < allTasks.length(); i++) {
+            JSONObject task = allTasks.optJSONObject(i);
+
+            if (task == null) continue;
+
+            if (project.name.equals(
+                    task.optString("project"))) {
+                result.put(task);
+            }
+        }
+
+        return result;
+    }
+
+    // Thống kê
     void showDetails() {
+
         txtTitle.setText(project.name);
 
-        int total = project.tasks.size();
-        int done = project.getDone();
+        JSONArray tasks = getProjectTasks();
+
+        int total = tasks.length();
+        int completed = 0;
+
+        for (int i = 0; i < tasks.length(); i++) {
+            JSONObject task = tasks.optJSONObject(i);
+
+            if (task != null && TaskStore.isDone(task)) {
+                completed++;
+            }
+        }
+
+        int percent = total == 0
+                ? 0 : completed * 100 / total;
 
         txtTotal.setText(total + "\nTotal");
-        txtDone.setText(done + "\nDone");
-        txtPending.setText((total - done) + "\nPending");
-        txtPercent.setText(project.getPercent() + "%");
+        txtDone.setText(completed + "\nDone");
+        txtPending.setText(
+                (total - completed) + "\nPending");
+        txtPercent.setText(percent + "%");
 
         showTasks();
     }
 
+    // Bộ lọc
     void changeFilter(String filter) {
+
         currentFilter = filter;
 
         TextView[] buttons = {
-                filterAll, filterTodo, filterProgress, filterDone
+                filterAll, filterTodo,
+                filterProgress, filterDone
         };
 
-        String[] names = {
-                "All", "To Do", "In Progress", "Done"
+        String[] values = {
+                "All", "Not Started",
+                "In Progress", "Completed"
         };
 
         for (int i = 0; i < buttons.length; i++) {
-            boolean selected = names[i].equals(filter);
+
+            boolean selected = values[i].equals(filter);
 
             buttons[i].setTextColor(
                     selected ? Color.WHITE : 0xFF888888);
 
             buttons[i].setBackgroundResource(
-                    selected ? R.drawable.bg_circle
+                    selected
+                            ? R.drawable.bg_category_selected
                             : R.drawable.bg_outline);
         }
 
@@ -114,10 +177,18 @@ public class ProjectDetailsActivity extends Activity {
     }
 
     void showTasks() {
+
         layoutTasks.removeAllViews();
 
-        for (ProjectsActivity.TaskData task : project.tasks) {
-            String status = task.done ? "Done" : task.status;
+        JSONArray tasks = getProjectTasks();
+
+        for (int i = 0; i < tasks.length(); i++) {
+
+            JSONObject task = tasks.optJSONObject(i);
+
+            if (task == null) continue;
+
+            String status = task.optString("status");
 
             if (!currentFilter.equals("All") &&
                     !currentFilter.equals(status)) {
@@ -128,174 +199,150 @@ public class ProjectDetailsActivity extends Activity {
         }
     }
 
-    void addTaskCard(ProjectsActivity.TaskData task) {
+    void addTaskCard(JSONObject task) {
+
         View item = getLayoutInflater().inflate(
                 R.layout.item_task, layoutTasks, false);
 
-        TextView txtName = item.findViewById(R.id.txtTaskName);
-        TextView txtTime = item.findViewById(R.id.txtTime);
-        TextView txtCategory = item.findViewById(R.id.txtCategory);
-        TextView btnMenu = item.findViewById(R.id.btnTaskMenu);
-        CheckBox check = item.findViewById(R.id.checkTask);
+        TextView txtName =
+                item.findViewById(R.id.txtTaskName);
 
-        txtName.setText(task.name);
-        txtTime.setText(task.time + " · " + project.name);
-        txtCategory.setText("● " + task.category);
+        TextView txtTime =
+                item.findViewById(R.id.txtTime);
 
-        check.setChecked(task.done);
+        TextView txtCategory =
+                item.findViewById(R.id.txtCategory);
 
-        if (task.done) {
-            txtName.setPaintFlags(txtName.getPaintFlags()
-                    | Paint.STRIKE_THRU_TEXT_FLAG);
+        TextView btnMenu =
+                item.findViewById(R.id.btnTaskMenu);
+
+        CheckBox check =
+                item.findViewById(R.id.checkTask);
+
+        String id = task.optString("id");
+        String name = task.optString("name");
+        String category = task.optString("category");
+
+        boolean completed = TaskStore.isDone(task);
+
+        txtName.setText(name);
+
+        txtTime.setText(
+                task.optString("time") +
+                        " · " + project.name);
+
+        txtCategory.setText("● " + category);
+        txtCategory.setTextColor(
+                TaskStore.categoryColor(category));
+
+        check.setChecked(completed);
+
+        if (completed) {
+            txtName.setPaintFlags(
+                    txtName.getPaintFlags() |
+                            Paint.STRIKE_THRU_TEXT_FLAG);
+
             txtName.setTextColor(0xFF999999);
         }
 
-        // Đánh dấu hoàn thành
+        // Đánh dấu hoàn thành, cập nhật SQLite
         check.setOnCheckedChangeListener((button, checked) -> {
-            task.done = checked;
-            task.status = checked ? "Done" : "To Do";
 
-            ProjectsActivity.saveData(this);
-            showDetails();
+            try {
+                task.put("status",
+                        checked ? "Completed" : "Not Started");
+
+                TaskStore.saveTask(this, task);
+
+                showDetails();
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         });
 
+        // Menu thao tác
         btnMenu.setOnClickListener(v -> {
+
             PopupMenu menu = new PopupMenu(this, btnMenu);
 
             menu.getMenu().add("Edit Task");
-            menu.getMenu().add("To Do");
+            menu.getMenu().add("Not Started");
             menu.getMenu().add("In Progress");
-            menu.getMenu().add("Done");
+            menu.getMenu().add("Completed");
             menu.getMenu().add("Delete Task");
 
             menu.setOnMenuItemClickListener(choice -> {
-                String action = choice.getTitle().toString();
+
+                String action =
+                        choice.getTitle().toString();
 
                 if (action.equals("Edit Task")) {
-                    showTaskDialog(task);
+
+                    Intent intent = new Intent(
+                            this, TaskFormActivity.class);
+
+                    intent.putExtra("taskId", id);
+                    startActivity(intent);
+
                     return true;
                 }
 
                 if (action.equals("Delete Task")) {
+
                     new AlertDialog.Builder(this)
                             .setTitle("Delete Task")
-                            .setMessage("Delete " + task.name + "?")
+                            .setMessage("Delete " + name + "?")
                             .setNegativeButton("Cancel", null)
                             .setPositiveButton("Delete", (d, w) -> {
-                                project.tasks.remove(task);
-                                ProjectsActivity.saveData(this);
+
+                                TaskStore.deleteTask(this, id);
                                 showDetails();
+
                             }).show();
 
                     return true;
                 }
 
-                task.status = action;
-                task.done = action.equals("Done");
+                try {
+                    task.put("status", action);
 
-                ProjectsActivity.saveData(this);
-                showDetails();
+                    TaskStore.saveTask(this, task);
+
+                    showDetails();
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
                 return true;
             });
 
             menu.show();
         });
 
+        // Nhấn vào Task để xem chi tiết
+        item.setOnClickListener(v -> {
+
+            Intent intent = new Intent(
+                    this, TaskDetailsActivity.class);
+
+            intent.putExtra("taskId", id);
+            startActivity(intent);
+        });
+
         layoutTasks.addView(item);
     }
 
-    // Thêm hoặc sửa Task
-    void showTaskDialog(ProjectsActivity.TaskData oldTask) {
-        LinearLayout form = new LinearLayout(this);
-        form.setOrientation(LinearLayout.VERTICAL);
-        form.setPadding(dp(20), dp(8), dp(20), 0);
-
-        EditText edtName = new EditText(this);
-        edtName.setHint("Task name");
-        edtName.setSingleLine(true);
-        form.addView(edtName);
-
-        EditText edtTime = new EditText(this);
-        edtTime.setHint("Time (e.g. 9:00 AM)");
-        edtTime.setSingleLine(true);
-        form.addView(edtTime);
-
-        Spinner spinner = new Spinner(this);
-
-        String[] categories = {
-                "Work", "Finance", "Personal", "Other"
-        };
-
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(
-                this,
-                android.R.layout.simple_spinner_dropdown_item,
-                categories);
-
-        spinner.setAdapter(adapter);
-        form.addView(spinner);
-
-        if (oldTask != null) {
-            edtName.setText(oldTask.name);
-            edtTime.setText(oldTask.time);
-
-            for (int i = 0; i < categories.length; i++) {
-                if (categories[i].equals(oldTask.category)) {
-                    spinner.setSelection(i);
-                    break;
-                }
-            }
-        }
-
-        AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle(oldTask == null ? "Add Task" : "Edit Task")
-                .setView(form)
-                .setNegativeButton("Cancel", null)
-                .setPositiveButton(
-                        oldTask == null ? "Add" : "Save", null)
-                .create();
-
-        dialog.setOnShowListener(d -> {
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE)
-                    .setOnClickListener(v -> {
-
-                        String name = edtName.getText().toString().trim();
-
-                        if (name.isEmpty()) {
-                            edtName.setError("Enter task name");
-                            return;
-                        }
-
-                        String time = edtTime.getText().toString().trim();
-                        String category =
-                                spinner.getSelectedItem().toString();
-
-                        if (oldTask == null) {
-                            project.tasks.add(
-                                    new ProjectsActivity.TaskData(
-                                            name, time, category, false));
-                        } else {
-                            oldTask.name = name;
-                            oldTask.time = time;
-                            oldTask.category = category;
-                        }
-
-                        ProjectsActivity.saveData(this);
-                        currentFilter = "All";
-                        changeFilter("All");
-                        showDetails();
-                        dialog.dismiss();
-                    });
-        });
-
-        dialog.show();
-    }
-
-    // Sửa tên Project từ trang Details
+    // Đổi tên Project và cập nhật các Task liên quan
     void editProjectName() {
+
         EditText edt = new EditText(this);
         edt.setSingleLine(true);
         edt.setText(project.name);
-        edt.setPadding(dp(20), dp(12), dp(20), dp(12));
+
+        edt.setPadding(
+                dp(20), dp(12), dp(20), dp(12));
 
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle("Edit Project")
@@ -305,22 +352,68 @@ public class ProjectDetailsActivity extends Activity {
                 .create();
 
         dialog.setOnShowListener(d -> {
+
             dialog.getButton(AlertDialog.BUTTON_POSITIVE)
                     .setOnClickListener(v -> {
-                        String name = edt.getText().toString().trim();
 
-                        if (name.isEmpty()) {
+                        String newName =
+                                edt.getText().toString().trim();
+
+                        if (newName.isEmpty()) {
                             edt.setError("Enter project name");
                             return;
                         }
 
-                        project.name = name;
+                        String oldName = project.name;
+
+                        if (!oldName.equals(newName)) {
+
+                            for (ProjectsActivity.ProjectData p :
+                                    ProjectsActivity.projects) {
+
+                                if (p != project &&
+                                        p.name.equals(newName)) {
+                                    edt.setError("Project already exists");
+                                    return;
+                                }
+                            }
+
+                            updateTaskProjectNames(oldName, newName);
+                        }
+
+                        project.name = newName;
+
                         ProjectsActivity.saveData(this);
+
                         showDetails();
                         dialog.dismiss();
                     });
         });
 
         dialog.show();
+    }
+
+    void updateTaskProjectNames(String oldName,
+                                String newName) {
+
+        JSONArray tasks = TaskStore.getTasks(this);
+
+        for (int i = 0; i < tasks.length(); i++) {
+
+            JSONObject task = tasks.optJSONObject(i);
+
+            if (task == null) continue;
+
+            if (oldName.equals(
+                    task.optString("project"))) {
+
+                try {
+                    task.put("project", newName);
+                    TaskStore.saveTask(this, task);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
     }
 }

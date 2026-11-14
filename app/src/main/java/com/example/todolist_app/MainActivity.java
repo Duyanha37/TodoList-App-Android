@@ -76,8 +76,16 @@ public class MainActivity extends Activity {
             startActivity(intent);
         });
 
+        // Home -> Profile
+        findViewById(R.id.navProfile).setOnClickListener(v -> {
+            Intent intent = new Intent(
+                    MainActivity.this, ProfileActivity.class);
+            startActivity(intent);
+        });
+
         showTasks();
     }
+
 
     @Override
     protected void onResume() {

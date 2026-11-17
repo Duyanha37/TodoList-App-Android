@@ -32,6 +32,7 @@ public class CategoriesActivity extends Activity {
     RecyclerView layoutCategories;
     ArrayList<CategoryData> categories = new ArrayList<>();
     CategoryAdapter categoryAdapter;
+    int userId;
 
     int[] colors = {
             0xFF4D95DF, 0xFFF0844C,
@@ -91,14 +92,18 @@ public class CategoriesActivity extends Activity {
                 View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
 
         setContentView(R.layout.activity_categories);
+        userId = getIntent().getIntExtra("userId", 0);
         findViewById(R.id.navProfile).setOnClickListener(v -> {
-            startActivity(new Intent(
-                    CategoriesActivity.this, ProfileActivity.class));
+            Intent intent = new Intent(
+                    CategoriesActivity.this, ProfileActivity.class);
+            intent.putExtra("userId", userId);
+            startActivity(intent);
         });
         findViewById(R.id.navHome).setOnClickListener(v -> {
             Intent intent = new Intent(
                     CategoriesActivity.this,
                     MainActivity.class);
+            intent.putExtra("userId", userId);
             startActivity(intent);
             finish();
         });
@@ -114,6 +119,7 @@ public class CategoriesActivity extends Activity {
                         intent.putExtra("categoryName", category.name);
                         intent.putExtra("categoryIcon", category.icon);
                         intent.putExtra("categoryColor", category.color);
+                        intent.putExtra("userId", userId);
                         startActivity(intent);
                     }
 
@@ -137,6 +143,7 @@ public class CategoriesActivity extends Activity {
             Intent intent = new Intent(
                     CategoriesActivity.this,
                     ProjectsActivity.class);
+            intent.putExtra("userId", userId);
             startActivity(intent);
         });
 
@@ -193,7 +200,7 @@ public class CategoriesActivity extends Activity {
             for (CategoryData c : categories) {
                 Categories category = new Categories();
                 category.setId(c.id);
-                category.setUserId(0);
+                category.setUserId(userId);
                 category.setName(c.name);
                 if (c.id == 0) {
                     c.id = (int) dao.insert(category);
@@ -208,7 +215,7 @@ public class CategoriesActivity extends Activity {
         getSharedPreferences(
                 "sqlite_category_setup", MODE_PRIVATE)
                 .edit()
-                .putBoolean("initialized", true)
+                .putBoolean("initialized_" + userId, true)
                 .apply();
     }
 
@@ -235,7 +242,7 @@ public class CategoriesActivity extends Activity {
         try {
             CategoriesDao dao =
                     new CategoriesDao(helper.getReadableDatabase());
-            for (Categories stored : dao.findByUserId(0)) {
+            for (Categories stored : dao.findByUserId(userId)) {
                 String name = stored.getName();
                 int index = categories.size();
                 String icon = icons[index % icons.length];
@@ -255,7 +262,7 @@ public class CategoriesActivity extends Activity {
                 getSharedPreferences(
                         "sqlite_category_setup", MODE_PRIVATE);
 
-        if (!setup.getBoolean("initialized", false)) {
+        if (!setup.getBoolean("initialized_" + userId, false)) {
 
             if (categories.isEmpty()) {
                 taoDuLieuMau();
@@ -263,7 +270,7 @@ public class CategoriesActivity extends Activity {
             }
 
             setup.edit()
-                    .putBoolean("initialized", true)
+                    .putBoolean("initialized_" + userId, true)
                     .apply();
         }
 
@@ -321,6 +328,7 @@ public class CategoriesActivity extends Activity {
             intent.putExtra("categoryIcon", c.icon);
             intent.putExtra("categoryColor", c.color);
 
+            intent.putExtra("userId", userId);
             startActivity(intent);
         });
 

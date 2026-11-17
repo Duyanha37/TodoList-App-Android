@@ -21,11 +21,13 @@ public class TaskSearchActivity extends Activity {
     TextView txtEmpty;
 
     String categoryFilter = "All";
+    int userId;
 
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         setContentView(R.layout.activity_task_search);
+        userId = getIntent().getIntExtra("userId", 0);
 
         edtSearch = findViewById(R.id.edtSearch);
         layoutResults = findViewById(R.id.layoutSearchResults);
@@ -33,6 +35,7 @@ public class TaskSearchActivity extends Activity {
                 task -> {
                     Intent intent = new Intent(this, TaskDetailsActivity.class);
                     intent.putExtra("taskId", task.getId());
+                    intent.putExtra("userId", userId);
                     startActivity(intent);
                 });
         layoutResults.setLayoutManager(new LinearLayoutManager(this));
@@ -104,7 +107,7 @@ public class TaskSearchActivity extends Activity {
             return;
         }
 
-        List<Task> tasks = TaskHelper.getTasks(this);
+        List<Task> tasks = TaskHelper.getTasks(this, userId);
         int count = 0;
 
         for (Task task : tasks) {

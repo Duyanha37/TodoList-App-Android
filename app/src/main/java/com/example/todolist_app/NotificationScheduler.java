@@ -23,7 +23,7 @@ public final class NotificationScheduler {
 
     public static void schedule(Context context, Task task) {
         cancel(context, task.getId());
-        if (!notificationsEnabled(context) || task.getId() == 0 ||
+        if (!notificationsEnabled(context, task.getUserId()) || task.getId() == 0 ||
                 task.getDate() == null || task.getTime() == null ||
                 TaskHelper.isDone(task)) {
             return;
@@ -56,18 +56,33 @@ public final class NotificationScheduler {
                 dueRequestCode(taskId)));
     }
 
-    public static void rescheduleAll(Context context) {
-        if (!notificationsEnabled(context)) return;
-        for (Task task : TaskHelper.getTasks(context)) schedule(context, task);
+    public static void rescheduleAll(Context context, int userId) {
+        if (!notificationsEnabled(context, userId)) return;
+        for (Task task : TaskHelper.getTasks(context, userId)) schedule(context, task);
     }
 
-    public static void cancelAll(Context context) {
-        for (Task task : TaskHelper.getTasks(context)) cancel(context, task.getId());
+    public static void rescheduleAll(Context context) {
+        DatabaseHelper helper = new DatabaseHelper(context);
+        try {
+            for (User user : new UserDao(helper.getReadableDatabase()).findAll()) {
+                rescheduleAll(context, Integer.parseInt(user.getId()));
+            }
+        } finally {
+            helper.close();
+        }
+    }
+
+    public static void cancelAll(Context context, int userId) {
+        for (Task task : TaskHelper.getTasks(context, userId)) cancel(context, task.getId());
     }
 
     public static boolean notificationsEnabled(Context context) {
+        return notificationsEnabled(context, 0);
+    }
+
+    public static boolean notificationsEnabled(Context context, int userId) {
         boolean enabled = context.getSharedPreferences(
-                "profile_data", Context.MODE_PRIVATE)
+                "profile_data_" + userId, Context.MODE_PRIVATE)
                 .getBoolean("notifications", false);
         return enabled && (Build.VERSION.SDK_INT < 33 ||
                 context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)

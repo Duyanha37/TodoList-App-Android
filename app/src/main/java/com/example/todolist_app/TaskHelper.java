@@ -72,9 +72,13 @@ public final class TaskHelper {
     }
 
     public static List<Task> getTasks(Context context) {
+        return getTasks(context, 0);
+    }
+
+    public static List<Task> getTasks(Context context, int userId) {
         DatabaseHelper helper = new DatabaseHelper(context);
         try {
-                return new TaskDao(helper.getReadableDatabase()).findAll();
+                return new TaskDao(helper.getReadableDatabase()).findByUserId(userId);
         } finally {
             helper.close();
         }
@@ -87,6 +91,11 @@ public final class TaskHelper {
         } finally {
             helper.close();
         }
+    }
+
+    public static Task find(Context context, int id, int userId) {
+        Task task = find(context, id);
+        return task != null && task.getUserId() == userId ? task : null;
     }
 
     public static void saveTask(Context context, Task task) {

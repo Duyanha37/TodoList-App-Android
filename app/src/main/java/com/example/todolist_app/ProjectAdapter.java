@@ -20,10 +20,13 @@ public class ProjectAdapter extends RecyclerView.Adapter<ProjectAdapter.ViewHold
 
     private final List<ProjectsActivity.ProjectData> projects;
     private final Listener listener;
+    private final int userId;
 
-    public ProjectAdapter(List<ProjectsActivity.ProjectData> projects, Listener listener) {
+    public ProjectAdapter(List<ProjectsActivity.ProjectData> projects, Listener listener,
+                          int userId) {
         this.projects = projects;
         this.listener = listener;
+        this.userId = userId;
     }
 
     @NonNull
@@ -39,7 +42,7 @@ public class ProjectAdapter extends RecyclerView.Adapter<ProjectAdapter.ViewHold
         holder.name.setText(project.name);
         int total = 0;
         int completed = 0;
-        for (Task task : TaskHelper.getTasks(holder.itemView.getContext())) {
+        for (Task task : TaskHelper.getTasks(holder.itemView.getContext(), userId)) {
             if (project.name.equals(TaskHelper.projectName(
                     holder.itemView.getContext(), task))) {
                 total++;

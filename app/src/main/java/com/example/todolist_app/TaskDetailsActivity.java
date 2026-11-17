@@ -12,6 +12,7 @@ public class TaskDetailsActivity extends Activity {
 
     int taskId;
     Task task;
+    int userId;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -19,12 +20,14 @@ public class TaskDetailsActivity extends Activity {
         setContentView(R.layout.activity_task_details);
 
         taskId = getIntent().getIntExtra("taskId", 0);
+        userId = getIntent().getIntExtra("userId", 0);
 
         findViewById(R.id.btnBack).setOnClickListener(v -> finish());
 
         findViewById(R.id.btnEdit).setOnClickListener(v -> {
             Intent intent = new Intent(this, TaskFormActivity.class);
             intent.putExtra("taskId", taskId);
+            intent.putExtra("userId", userId);
             startActivity(intent);
         });
 
@@ -57,7 +60,7 @@ public class TaskDetailsActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        task = TaskHelper.find(this, taskId);
+        task = TaskHelper.find(this, taskId, userId);
 
         if (task == null) {
             finish();

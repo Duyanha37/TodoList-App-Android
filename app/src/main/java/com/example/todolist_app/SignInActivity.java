@@ -109,7 +109,7 @@ public class SignInActivity extends AppCompatActivity {
         }
         Toast.makeText(this, "Đăng nhập thành công.", Toast.LENGTH_SHORT).show();
         Intent itn = new Intent(this, MainActivity.class);
-        itn.putExtra("userId", user.getId());
+        itn.putExtra("userId", Integer.parseInt(user.getId()));
         startActivity(itn);
         finish();
     }

@@ -34,6 +34,7 @@ public class TaskFormActivity extends Activity {
     String selectedStatus = "Not Started";
 
     Task editingTask;
+    int userId;
 
     int dp(int n) {
         return (int)(n * getResources()
@@ -46,7 +47,7 @@ public class TaskFormActivity extends Activity {
                 new DatabaseHelper(this);
         try {
             ProjectDao dao = new ProjectDao(helper.getReadableDatabase());
-            for (Project project : dao.findByUserId(0)) {
+            for (Project project : dao.findByUserId(userId)) {
                 projectNames.add(project.getName());
             }
         } finally {
@@ -70,7 +71,7 @@ public class TaskFormActivity extends Activity {
         try {
             CategoriesDao dao =
                     new CategoriesDao(helper.getReadableDatabase());
-            for (Categories category : dao.findByUserId(0)) {
+            for (Categories category : dao.findByUserId(userId)) {
                 categoryNames.add(category.getName());
             }
         } finally {
@@ -82,6 +83,7 @@ public class TaskFormActivity extends Activity {
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         setContentView(R.layout.activity_task_form);
+        userId = getIntent().getIntExtra("userId", 0);
 
         edtName = findViewById(R.id.edtTaskName);
         edtDescription = findViewById(R.id.edtDescription);
@@ -103,7 +105,7 @@ public class TaskFormActivity extends Activity {
 
 
         if (taskId != 0) {
-            editingTask = TaskHelper.find(this, taskId);
+            editingTask = TaskHelper.find(this, taskId, userId);
 
             if (editingTask == null) {
                 finish();
@@ -341,6 +343,7 @@ public class TaskFormActivity extends Activity {
             task = TaskHelper.makeTask(
                     name, description, selectedDate, selectedTime,
                     selectedCategory, project, selectedStatus);
+            task.setUserId(userId);
         } else {
             task = editingTask;
             task.setTitle(name);

@@ -37,6 +37,7 @@ public class ProjectsActivity extends Activity {
 
     RecyclerView layoutProjects;
     ProjectAdapter projectAdapter;
+    int userId;
 
     int[] colors = {
             0xFF4D95DF, 0xFFF0844C, 0xFF55B968,
@@ -72,13 +73,13 @@ public class ProjectsActivity extends Activity {
     }
 
 
-    public static void loadData(Context context) {
+    public static void loadData(Context context, int userId) {
         projects.clear();
         DatabaseHelper helper =
                 new DatabaseHelper(context);
         try {
             ProjectDao dao = new ProjectDao(helper.getReadableDatabase());
-            for (Project stored : dao.findByUserId(0)) {
+            for (Project stored : dao.findByUserId(userId)) {
                 int index = projects.size();
                 ProjectData project = new ProjectData(
                         stored.getName(),
@@ -95,21 +96,21 @@ public class ProjectsActivity extends Activity {
                 "sqlite_project_setup",
                 Context.MODE_PRIVATE);
 
-        if (!setup.getBoolean("initialized", false)) {
+        if (!setup.getBoolean("initialized_" + userId, false)) {
 
             if (projects.isEmpty()) {
                 createSamples();
-                saveData(context);
+                saveData(context, userId);
             }
 
             setup.edit()
-                    .putBoolean("initialized", true)
+                    .putBoolean("initialized_" + userId, true)
                     .apply();
         }
     }
 
 
-    public static void saveData(Context context) {
+    public static void saveData(Context context, int userId) {
         DatabaseHelper helper =
                 new DatabaseHelper(context);
         try {
@@ -117,7 +118,7 @@ public class ProjectsActivity extends Activity {
             for (ProjectData p : projects) {
                 Project project = new Project();
                 project.setId(p.id);
-                project.setUserId(0);
+                project.setUserId(userId);
                 project.setName(p.name);
                 if (p.id == 0) {
                     p.id = (int) dao.insert(project);
@@ -132,7 +133,7 @@ public class ProjectsActivity extends Activity {
                         "sqlite_project_setup",
                         Context.MODE_PRIVATE)
                 .edit()
-                .putBoolean("initialized", true)
+                .putBoolean("initialized_" + userId, true)
                 .apply();
     }
 
@@ -166,6 +167,7 @@ public class ProjectsActivity extends Activity {
                 View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
 
         setContentView(R.layout.activity_projects);
+        userId = getIntent().getIntExtra("userId", 0);
 
         View navHome = findViewById(R.id.navHome);
 
@@ -175,6 +177,7 @@ public class ProjectsActivity extends Activity {
                         ProjectsActivity.this,
                         MainActivity.class);
 
+                intent.putExtra("userId", userId);
                 startActivity(intent);
                 finish();
             });
@@ -187,6 +190,7 @@ public class ProjectsActivity extends Activity {
                 Intent intent = new Intent(
                         ProjectsActivity.this,
                         CategoriesActivity.class);
+                intent.putExtra("userId", userId);
                 startActivity(intent);
                 finish();
             });
@@ -198,6 +202,7 @@ public class ProjectsActivity extends Activity {
                 Intent intent = new Intent(
                         ProjectsActivity.this,
                         ProfileActivity.class);
+                intent.putExtra("userId", userId);
                 startActivity(intent);
                 finish();
             });
@@ -211,6 +216,7 @@ public class ProjectsActivity extends Activity {
                         Intent intent = new Intent(ProjectsActivity.this,
                                 ProjectDetailsActivity.class);
                         intent.putExtra("position", projects.indexOf(project));
+                        intent.putExtra("userId", userId);
                         startActivity(intent);
                     }
 
@@ -218,7 +224,7 @@ public class ProjectsActivity extends Activity {
                     public void onMenuClick(View anchor, ProjectData project) {
                         showProjectMenu(anchor, project);
                     }
-                });
+                }, userId);
         layoutProjects.setLayoutManager(new LinearLayoutManager(this));
         layoutProjects.setAdapter(projectAdapter);
         findViewById(R.id.btnAdd).setOnClickListener(v ->
@@ -236,7 +242,7 @@ public class ProjectsActivity extends Activity {
     protected void onResume() {
         super.onResume();
         if (layoutProjects != null) {
-            loadData(this);
+            loadData(this, userId);
             showProjects();
         }
     }
@@ -263,7 +269,7 @@ public class ProjectsActivity extends Activity {
                         .setNegativeButton("Cancel", null)
                         .setPositiveButton("Archive", (d, w) -> {
                             p.archived = true;
-                            saveData(this);
+                            saveData(this, userId);
                             showProjects();
                         }).show();
             } else {
@@ -291,7 +297,7 @@ public class ProjectsActivity extends Activity {
 
     // Thống kê Task trong bảng SQLite chung với Home
     int[] thongKeTask(String projectName) {
-        java.util.List<Task> tasks = TaskHelper.getTasks(this);
+        java.util.List<Task> tasks = TaskHelper.getTasks(this, userId);
         int total = 0;
         int completed = 0;
 
@@ -348,6 +354,7 @@ public class ProjectsActivity extends Activity {
                     this, ProjectDetailsActivity.class);
 
             intent.putExtra("position", projects.indexOf(p));
+            intent.putExtra("userId", userId);
             startActivity(intent);
         });
 
@@ -373,7 +380,7 @@ public class ProjectsActivity extends Activity {
                             .setNegativeButton("Cancel", null)
                             .setPositiveButton("Archive", (d, w) -> {
                                 p.archived = true;
-                                saveData(this);
+                                saveData(this, userId);
                                 showProjects();
                             }).show();
                 }
@@ -572,14 +579,14 @@ public class ProjectsActivity extends Activity {
             if (oldProject == null) {
                 projects.add(new ProjectData(
                         name, selectedColor[0], selectedDate[0]));
-                saveData(this);
+                saveData(this, userId);
             } else {
                 String oldName = oldProject.name;
                 oldProject.name = name;
                 oldProject.color = selectedColor[0];
                 oldProject.deadline = selectedDate[0];
 
-                saveData(this);
+                saveData(this, userId);
             }
 
             showProjects();
@@ -630,7 +637,7 @@ public class ProjectsActivity extends Activity {
                             .setNegativeButton("Cancel", null)
                             .setPositiveButton("Restore", (a, b) -> {
                                 p.archived = false;
-                                saveData(this);
+                                saveData(this, userId);
                                 showProjects();
                             }).show();
                 }).show();

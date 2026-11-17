@@ -24,11 +24,13 @@ public class MainActivity extends Activity {
     List<Task> tasks;
     final List<Task> visibleTasks = new java.util.ArrayList<>();
     TaskAdapter taskAdapter;
+    int userId;
 
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         setContentView(R.layout.activity_main);
+        userId = getIntent().getIntExtra("userId", 0);
 
         layoutTaskList = findViewById(R.id.layoutTaskList);
         taskAdapter = new TaskAdapter(visibleTasks,
@@ -38,6 +40,7 @@ public class MainActivity extends Activity {
                         Intent intent = new Intent(MainActivity.this,
                                 TaskDetailsActivity.class);
                         intent.putExtra("taskId", task.getId());
+                        intent.putExtra("userId", userId);
                         startActivity(intent);
                     }
 
@@ -61,12 +64,14 @@ public class MainActivity extends Activity {
         // Gán event Addtask gọi TaskFormActivity
         findViewById(R.id.btnAddTask).setOnClickListener(v -> {
             Intent newitn = new Intent (MainActivity.this, TaskFormActivity.class);
+            newitn.putExtra("userId", userId);
             startActivity(newitn);
         });
 
         // Gán event Search gọi TaskSearchActivity
         findViewById(R.id.btnSearch).setOnClickListener(v -> {
             Intent newitn = new Intent(MainActivity.this, TaskSearchActivity.class);
+            newitn.putExtra("userId", userId);
             startActivity(newitn);
         });
 
@@ -91,6 +96,7 @@ public class MainActivity extends Activity {
         findViewById(R.id.navProjects).setOnClickListener(v -> {
             Intent newitn = new Intent(
                     MainActivity.this, ProjectsActivity.class);
+            newitn.putExtra("userId", userId);
             startActivity(newitn);
         });
 
@@ -98,6 +104,7 @@ public class MainActivity extends Activity {
         findViewById(R.id.navCategories).setOnClickListener(v -> {
             Intent newitn = new Intent(
                     MainActivity.this, CategoriesActivity.class);
+            newitn.putExtra("userId", userId);
             startActivity(newitn);
         });
 
@@ -105,6 +112,7 @@ public class MainActivity extends Activity {
         findViewById(R.id.navProfile).setOnClickListener(v -> {
             Intent newitn = new Intent(
                     MainActivity.this, ProfileActivity.class);
+            newitn.putExtra("userId", userId);
             startActivity(newitn);
         });
 
@@ -123,7 +131,7 @@ public class MainActivity extends Activity {
 
     // Hiển thị danh sách Task
     void showTasks() {
-        tasks = TaskHelper.getTasks(this);
+        tasks = TaskHelper.getTasks(this, userId);
         visibleTasks.clear();
 
         int today = 0;
@@ -291,6 +299,7 @@ public class MainActivity extends Activity {
                             TaskDetailsActivity.class);
 
                     intent.putExtra("taskId", id);
+                    intent.putExtra("userId", userId);
                     startActivity(intent);
                 });
 

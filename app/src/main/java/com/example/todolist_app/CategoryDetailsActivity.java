@@ -30,6 +30,7 @@ public class CategoryDetailsActivity extends Activity {
     final List<Task> visibleTasks = new java.util.ArrayList<>();
     TaskAdapter taskAdapter;
     TextView txtStats;
+    int userId;
 
     int dp(int n) {
         return (int) (n * getResources()
@@ -40,6 +41,7 @@ public class CategoryDetailsActivity extends Activity {
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         setContentView(R.layout.activity_category_details);
+        userId = getIntent().getIntExtra("userId", 0);
 
         categoryName = getIntent().getStringExtra("categoryName");
         if (categoryName == null) categoryName = "Work";
@@ -57,6 +59,7 @@ public class CategoryDetailsActivity extends Activity {
                         Intent intent = new Intent(CategoryDetailsActivity.this,
                                 TaskDetailsActivity.class);
                         intent.putExtra("taskId", task.getId());
+                        intent.putExtra("userId", userId);
                         startActivity(intent);
                     }
 
@@ -95,6 +98,7 @@ public class CategoryDetailsActivity extends Activity {
                     Intent intent = new Intent(
                             this, TaskFormActivity.class);
                     intent.putExtra("categoryName", categoryName);
+                    intent.putExtra("userId", userId);
                     startActivity(intent);
                 });
 
@@ -168,7 +172,7 @@ public class CategoryDetailsActivity extends Activity {
     void showTasks() {
         visibleTasks.clear();
 
-        List<Task> tasks = TaskHelper.getTasks(this);
+        List<Task> tasks = TaskHelper.getTasks(this, userId);
         int total = 0;
         int completed = 0;
 
@@ -286,6 +290,7 @@ public class CategoryDetailsActivity extends Activity {
                     Intent intent = new Intent(
                             this, TaskDetailsActivity.class);
                     intent.putExtra("taskId", id);
+                    intent.putExtra("userId", userId);
                     startActivity(intent);
                 });
 

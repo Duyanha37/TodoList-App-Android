@@ -29,6 +29,7 @@ public class ProjectDetailsActivity extends Activity {
     TextView filterAll, filterTodo, filterProgress, filterDone;
 
     String currentFilter = "All";
+    int userId;
 
     int dp(int n) {
         return (int) (n * getResources()
@@ -39,6 +40,7 @@ public class ProjectDetailsActivity extends Activity {
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         setContentView(R.layout.activity_project_details);
+        userId = getIntent().getIntExtra("userId", 0);
 
         int position = getIntent().getIntExtra("position", -1);
 
@@ -57,6 +59,7 @@ public class ProjectDetailsActivity extends Activity {
                         Intent intent = new Intent(ProjectDetailsActivity.this,
                                 TaskDetailsActivity.class);
                         intent.putExtra("taskId", task.getId());
+                        intent.putExtra("userId", userId);
                         startActivity(intent);
                     }
 
@@ -94,6 +97,7 @@ public class ProjectDetailsActivity extends Activity {
                     this, TaskFormActivity.class);
 
             intent.putExtra("projectName", project.name);
+            intent.putExtra("userId", userId);
             startActivity(intent);
         });
 
@@ -123,7 +127,7 @@ public class ProjectDetailsActivity extends Activity {
     // Lấy Task của Project từ SQLite
     List<Task> getProjectTasks() {
         List<Task> result = new ArrayList<>();
-        for (Task task : TaskHelper.getTasks(this)) {
+        for (Task task : TaskHelper.getTasks(this, userId)) {
             if (project.name.equals(TaskHelper.projectName(this, task))) {
                 result.add(task);
             }
@@ -217,6 +221,7 @@ public class ProjectDetailsActivity extends Activity {
             if (action.equals("Edit Task")) {
                 Intent intent = new Intent(this, TaskFormActivity.class);
                 intent.putExtra("taskId", task.getId());
+                intent.putExtra("userId", userId);
                 startActivity(intent);
             } else if (action.equals("Delete Task")) {
                 new AlertDialog.Builder(this)
@@ -322,6 +327,7 @@ public class ProjectDetailsActivity extends Activity {
                             this, TaskFormActivity.class);
 
                     intent.putExtra("taskId", id);
+                    intent.putExtra("userId", userId);
                     startActivity(intent);
 
                     return true;
@@ -360,6 +366,7 @@ public class ProjectDetailsActivity extends Activity {
                     this, TaskDetailsActivity.class);
 
             intent.putExtra("taskId", id);
+            intent.putExtra("userId", userId);
             startActivity(intent);
         });
 
@@ -413,7 +420,7 @@ public class ProjectDetailsActivity extends Activity {
 
                         project.name = newName;
 
-                        ProjectsActivity.saveData(this);
+                        ProjectsActivity.saveData(this, userId);
 
                         showDetails();
                         dialog.dismiss();

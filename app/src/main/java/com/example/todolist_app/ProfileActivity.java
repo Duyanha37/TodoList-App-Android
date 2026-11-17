@@ -19,6 +19,7 @@ public class ProfileActivity extends Activity {
     SharedPreferences pref;
     TextView txtName, txtEmail;
     TextView txtNotificationValue, txtThemeValue;
+    int userId;
 
     int dp(int n) {
         return (int) (n * getResources()
@@ -29,9 +30,9 @@ public class ProfileActivity extends Activity {
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         setContentView(R.layout.activity_profile);
+        userId = getIntent().getIntExtra("userId", 0);
 
-        pref = getSharedPreferences(
-                "profile_data", MODE_PRIVATE);
+        pref = getSharedPreferences("profile_data_" + userId, MODE_PRIVATE);
 
         txtName = findViewById(R.id.txtProfileName);
         txtEmail = findViewById(R.id.txtProfileEmail);
@@ -80,11 +81,11 @@ public class ProfileActivity extends Activity {
         findViewById(R.id.rowHelp)
                 .setOnClickListener(v ->
                         new AlertDialog.Builder(this)
-                                .setTitle("Help & Support")
+                                .setTitle("Hỗ trợ")
                                 .setMessage(
-                                        "Use Home to manage tasks.\n\n" +
-                                                "Use Projects to manage projects.\n\n" +
-                                                "Use Categories to manage categories.")
+                                        "Sử dụng Home để quản lý công việc.\n\n" +
+                                                "Sử dụng Projects để quản lý dự án.\n\n" +
+                                                "Sử dụng Categories để quản lý danh mục.")
                                 .setPositiveButton("OK", null)
                                 .show());
 
@@ -92,7 +93,7 @@ public class ProfileActivity extends Activity {
         findViewById(R.id.rowAbout)
                 .setOnClickListener(v ->
                         new AlertDialog.Builder(this)
-                                .setTitle("About TodoList")
+                                .setTitle("Về ứng dụng")
                                 .setMessage(
                                         "TodoList\nAndroid Task Manager")
                                 .setPositiveButton("OK", null)
@@ -142,16 +143,26 @@ public class ProfileActivity extends Activity {
 
     void open(Class<?> activity) {
         Intent intent = new Intent(this, activity);
+        intent.putExtra("userId", userId);
         startActivity(intent);
         finish();
     }
 
     void showProfile() {
-        txtName.setText(pref.getString(
-                "name", "Alex Morgan"));
-
-        txtEmail.setText(pref.getString(
-                "email", "alex.morgan@email.com"));
+        DatabaseHelper helper = new DatabaseHelper(this);
+        try {
+            User user = new UserDao(helper.getReadableDatabase())
+                    .findById(String.valueOf(userId));
+            if (user != null) {
+                txtName.setText(user.getFullname());
+                txtEmail.setText(user.getEmail());
+            } else {
+                txtName.setText(pref.getString("name", ""));
+                txtEmail.setText(pref.getString("email", ""));
+            }
+        } finally {
+            helper.close();
+        }
     }
 
     void showSettings() {
@@ -217,10 +228,18 @@ public class ProfileActivity extends Activity {
                             return;
                         }
 
-                        pref.edit()
-                                .putString("name", name)
-                                .putString("email", email)
-                                .apply();
+                        DatabaseHelper helper = new DatabaseHelper(this);
+                        try {
+                            User user = new UserDao(helper.getWritableDatabase())
+                                    .findById(String.valueOf(userId));
+                            if (user != null) {
+                                user.setFullname(name);
+                                user.setEmail(email);
+                                new UserDao(helper.getWritableDatabase()).update(user);
+                            }
+                        } finally {
+                            helper.close();
+                        }
 
                         showProfile();
                         dialog.dismiss();
@@ -246,7 +265,7 @@ public class ProfileActivity extends Activity {
                         (d, w) -> {
 
                             if (enabled) {
-                                NotificationScheduler.cancelAll(this);
+                                NotificationScheduler.cancelAll(this, userId);
                                 pref.edit()
                                         .putBoolean("notifications", false)
                                         .apply();
@@ -276,7 +295,7 @@ public class ProfileActivity extends Activity {
                     .putBoolean("notifications", true)
                     .apply();
 
-            NotificationScheduler.rescheduleAll(this);
+            NotificationScheduler.rescheduleAll(this, userId);
             showSettings();
         }
     }
@@ -302,7 +321,7 @@ public class ProfileActivity extends Activity {
                     .apply();
 
             if (granted) {
-                NotificationScheduler.rescheduleAll(this);
+                NotificationScheduler.rescheduleAll(this, userId);
             }
             showSettings();
 

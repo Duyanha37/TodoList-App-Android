@@ -5,6 +5,13 @@ public class Project {
     private int userId;
     private String name;
 
+    public Project() {}
+
+    public Project(String name, int userId) {
+        this.name = name;
+        this.userId = userId;
+    }
+
     public int getId() {
         return id;
     }
@@ -27,5 +34,10 @@ public class Project {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    @Override
+    public String toString() {
+        return name;
     }
 }

@@ -6,7 +6,7 @@ import android.database.sqlite.SQLiteOpenHelper;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String DATABASE_NAME = "todolist.db";
-    private static final int DATABASE_VERSION = 1;
+    private static final int DATABASE_VERSION = 4;
 
     public DatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
@@ -14,11 +14,43 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     @Override
     public void onCreate(SQLiteDatabase db) {
-        String createUserTable = "CREATE TABLE User (id INTEGER PRIMARY KEY AUTOINCREMENT, fullname TEXT, password TEXT, email TEXT, phone TEXT)";
-        String createCategoriesTable = "CREATE TABLE Categories (id INTEGER PRIMARY KEY AUTOINCREMENT, userId INTEGER, name TEXT REFERENCES User(id) ON DELETE CASCADE)";
-        String createTaskTable = "CREATE TABLE Task (id INTEGER PRIMARY KEY AUTOINCREMENT, userId INTEGER, projectId INTEGER, title TEXT, description TEXT, comments TEXT, date TEXT, priority TEXT, status TEXT REFERENCES Categories(id) REFERENCES User(id) ON DELETE CASCADE)";
-        String createProjectTable = "CREATE TABLE Project (id INTEGER PRIMARY KEY AUTOINCREMENT, userId INTEGER, name TEXT REFERENCES User(id) ON DELETE CASCADE)";
-        String createTaskCategoriesTable = "CREATE TABLE TaskCategories (taskId INTEGER REFERENCES Task(id) ON DELETE CASCADE, categoryId INTEGER REFERENCES Categories(id) ON DELETE CASCADE, PRIMARY KEY (taskId, categoryId))";
+        String createUserTable = "CREATE TABLE User (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                "fullname TEXT NOT NULL," +
+                "password TEXT NOT NULL," +
+                "email TEXT NOT NULL UNIQUE)";
+
+        String createCategoriesTable = "CREATE TABLE Categories (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                "userId INTEGER NOT NULL DEFAULT 0," +
+                "name TEXT NOT NULL," +
+                "UNIQUE(userId, name))";
+
+        String createTaskTable = "CREATE TABLE Task (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                "userId INTEGER NOT NULL DEFAULT 0," +
+                "projectId INTEGER," +
+                "title TEXT NOT NULL," +
+                "description TEXT NOT NULL DEFAULT ''," +
+                "comments TEXT NOT NULL DEFAULT '[]'," +
+                "date TEXT NOT NULL," +
+                "time TEXT NOT NULL DEFAULT '09:00'," +
+                "priority TEXT NOT NULL DEFAULT 'Normal'," +
+                "status TEXT NOT NULL DEFAULT 'Not Started'," +
+                "FOREIGN KEY(projectId) REFERENCES Project(id) ON DELETE SET NULL)";
+
+        String createProjectTable = "CREATE TABLE Project (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                "userId INTEGER NOT NULL DEFAULT 0," +
+                "name TEXT NOT NULL," +
+                "UNIQUE(userId, name))";
+
+        String createTaskCategoriesTable = "CREATE TABLE TaskCategories (" +
+                "taskId INTEGER NOT NULL," +
+                "categoryId INTEGER NOT NULL," +
+                "PRIMARY KEY (taskId, categoryId)," +
+                "FOREIGN KEY(taskId) REFERENCES Task(id) ON DELETE CASCADE," +
+                "FOREIGN KEY(categoryId) REFERENCES Categories(id) ON DELETE CASCADE)";
 
         db.execSQL(createUserTable);
         db.execSQL(createCategoriesTable);
@@ -29,12 +61,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        db.execSQL("DROP TABLE IF EXISTS User");
-        db.execSQL("DROP TABLE IF EXISTS Categories");
-        db.execSQL("DROP TABLE IF EXISTS Task");
-        db.execSQL("DROP TABLE IF EXISTS Project");
-        db.execSQL("DROP TABLE IF EXISTS TaskCategories");
-        onCreate(db);
+        if (oldVersion < 4) {
+            db.execSQL("ALTER TABLE Task ADD COLUMN time TEXT NOT NULL DEFAULT '09:00'");
+        }
     }
 
     @Override
@@ -42,4 +71,5 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         super.onConfigure(db);
         db.setForeignKeyConstraintsEnabled(true);
     }
+
 }

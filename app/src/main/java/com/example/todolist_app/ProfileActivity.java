@@ -246,6 +246,7 @@ public class ProfileActivity extends Activity {
                         (d, w) -> {
 
                             if (enabled) {
+                                NotificationScheduler.cancelAll(this);
                                 pref.edit()
                                         .putBoolean("notifications", false)
                                         .apply();
@@ -275,6 +276,7 @@ public class ProfileActivity extends Activity {
                     .putBoolean("notifications", true)
                     .apply();
 
+            NotificationScheduler.rescheduleAll(this);
             showSettings();
         }
     }
@@ -299,6 +301,9 @@ public class ProfileActivity extends Activity {
                     .putBoolean("notifications", granted)
                     .apply();
 
+            if (granted) {
+                NotificationScheduler.rescheduleAll(this);
+            }
             showSettings();
 
             if (!granted) {

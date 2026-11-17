@@ -6,14 +6,18 @@ import android.os.Bundle;
 import android.text.*;
 import android.view.*;
 import android.widget.*;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
+import java.util.List;
 
 public class TaskSearchActivity extends Activity {
 
     EditText edtSearch;
-    LinearLayout layoutResults, layoutRecent;
+    RecyclerView layoutResults;
+    LinearLayout layoutRecent;
+    final List<Task> searchResults = new java.util.ArrayList<>();
+    TaskSearchAdapter searchAdapter;
     TextView txtEmpty;
 
     String categoryFilter = "All";
@@ -25,6 +29,14 @@ public class TaskSearchActivity extends Activity {
 
         edtSearch = findViewById(R.id.edtSearch);
         layoutResults = findViewById(R.id.layoutSearchResults);
+        searchAdapter = new TaskSearchAdapter(searchResults,
+                task -> {
+                    Intent intent = new Intent(this, TaskDetailsActivity.class);
+                    intent.putExtra("taskId", task.getId());
+                    startActivity(intent);
+                });
+        layoutResults.setLayoutManager(new LinearLayoutManager(this));
+        layoutResults.setAdapter(searchAdapter);
         layoutRecent = findViewById(R.id.layoutRecent);
         txtEmpty = findViewById(R.id.txtEmpty);
 
@@ -81,58 +93,35 @@ public class TaskSearchActivity extends Activity {
     }
 
     void search() {
-        layoutResults.removeAllViews();
+        searchResults.clear();
 
         String keyword = edtSearch.getText().toString()
                 .trim().toLowerCase();
 
         if (keyword.isEmpty() && categoryFilter.equals("All")) {
             txtEmpty.setVisibility(View.VISIBLE);
+            searchAdapter.notifyDataSetChanged();
             return;
         }
 
-        JSONArray tasks = TaskStore.getTasks(this);
+        List<Task> tasks = TaskHelper.getTasks(this);
         int count = 0;
 
-        for (int i = 0; i < tasks.length(); i++) {
-            JSONObject task = tasks.optJSONObject(i);
-            if (task == null) continue;
+        for (Task task : tasks) {
 
-            String name = task.optString("name").toLowerCase();
-            String description =
-                    task.optString("description").toLowerCase();
+            String name = task.getTitle().toLowerCase();
+            String description = task.getDescription() == null
+                    ? "" : task.getDescription().toLowerCase();
 
             boolean matchesText = keyword.isEmpty() ||
                     name.contains(keyword) ||
                     description.contains(keyword);
 
             boolean matchesCategory = categoryFilter.equals("All") ||
-                    task.optString("category").equals(categoryFilter);
+                    TaskHelper.belongsToCategory(this, task, categoryFilter);
 
             if (matchesText && matchesCategory) {
-                TextView result = new TextView(this);
-                result.setText(task.optString("name")
-                        + "\n" + task.optString("time")
-                        + " · " + task.optString("project"));
-                result.setTextSize(14);
-                result.setTextColor(0xFF111111);
-                result.setPadding(18, 18, 18, 18);
-                result.setBackgroundResource(R.drawable.bg_card);
-
-                LinearLayout.LayoutParams lp =
-                        new LinearLayout.LayoutParams(-1, -2);
-                lp.bottomMargin = 10;
-                layoutResults.addView(result, lp);
-
-                String id = task.optString("id");
-
-                result.setOnClickListener(v -> {
-                    Intent intent = new Intent(
-                            this, TaskDetailsActivity.class);
-                    intent.putExtra("taskId", id);
-                    startActivity(intent);
-                });
-
+                searchResults.add(task);
                 count++;
             }
         }
@@ -143,5 +132,6 @@ public class TaskSearchActivity extends Activity {
         txtEmpty.setText(count == 0
                 ? "No matching tasks found"
                 : "");
+        searchAdapter.notifyDataSetChanged();
     }
 }

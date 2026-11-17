@@ -22,19 +22,16 @@ import android.widget.LinearLayout;
 import android.widget.PopupMenu;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.content.ContentValues;
-import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
-
-import org.json.JSONArray;
-import org.json.JSONObject;
-
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import java.util.ArrayList;
 
 public class CategoriesActivity extends Activity {
 
-    LinearLayout layoutCategories;
+    RecyclerView layoutCategories;
     ArrayList<CategoryData> categories = new ArrayList<>();
+    CategoryAdapter categoryAdapter;
 
     int[] colors = {
             0xFF4D95DF, 0xFFF0844C,
@@ -52,6 +49,7 @@ public class CategoriesActivity extends Activity {
 
     // Dữ liệu một danh mục
     class CategoryData {
+        int id;
         String name, icon;
         int color, tasks;
 
@@ -107,6 +105,25 @@ public class CategoriesActivity extends Activity {
 
 
         layoutCategories = findViewById(R.id.layoutCategories);
+        categoryAdapter = new CategoryAdapter(categories,
+                new CategoryAdapter.Listener() {
+                    @Override
+                    public void onCategoryClick(CategoryData category) {
+                        Intent intent = new Intent(CategoriesActivity.this,
+                                CategoryDetailsActivity.class);
+                        intent.putExtra("categoryName", category.name);
+                        intent.putExtra("categoryIcon", category.icon);
+                        intent.putExtra("categoryColor", category.color);
+                        startActivity(intent);
+                    }
+
+                    @Override
+                    public void onMenuClick(View anchor, CategoryData category) {
+                        showCategoryMenu(anchor, category);
+                    }
+                });
+        layoutCategories.setLayoutManager(new LinearLayoutManager(this));
+        layoutCategories.setAdapter(categoryAdapter);
 
         // Hai nút cộng
         findViewById(R.id.btnAddCategory)
@@ -141,21 +158,9 @@ public class CategoriesActivity extends Activity {
 
 
     void capNhatCategoryTrongTasks(String tenCu, String tenMoi) {
-
-        TodoDatabaseHelper helper =
-                new TodoDatabaseHelper(this);
-
-        SQLiteDatabase db = helper.getWritableDatabase();
-
-        ContentValues values = new ContentValues();
-        values.put("category", tenMoi);
-
-        db.update(
-                "tasks",
-                values,
-                "category = ?",
-                new String[]{tenCu});
-
+        DatabaseHelper helper = new DatabaseHelper(this);
+        new TaskDao(helper.getWritableDatabase())
+                .updateCategory(tenCu, tenMoi);
         helper.close();
     }
 
@@ -179,28 +184,24 @@ public class CategoriesActivity extends Activity {
 
     // Lưu dữ liệu
     void luuDuLieu() {
-        TodoDatabaseHelper helper =
-                new TodoDatabaseHelper(this);
+        DatabaseHelper helper =
+                new DatabaseHelper(this);
 
-        helper.migrateLegacyData();
-        SQLiteDatabase db = helper.getWritableDatabase();
-        db.beginTransaction();
         try {
-            // Xóa danh sách cũ trong bảng Categories
-            db.delete("categories", null, null);
-            // Lưu lại danh sách hiện tại
+            CategoriesDao dao =
+                    new CategoriesDao(helper.getWritableDatabase());
             for (CategoryData c : categories) {
-                ContentValues values = new ContentValues();
-                values.put("name", c.name);
-                values.put("icon", c.icon);
-                values.put("color", c.color);
-                values.put("tasks", c.tasks);
-                db.insertOrThrow(
-                        "categories", null, values);
+                Categories category = new Categories();
+                category.setId(c.id);
+                category.setUserId(0);
+                category.setName(c.name);
+                if (c.id == 0) {
+                    c.id = (int) dao.insert(category);
+                } else {
+                    dao.update(category);
+                }
             }
-            db.setTransactionSuccessful();
         } finally {
-            db.endTransaction();
             helper.close();
         }
         // Đánh dấu đã khởi tạo Categories
@@ -212,21 +213,14 @@ public class CategoriesActivity extends Activity {
     }
 
     int demTaskTheoCategory(String categoryName) {
-        TodoDatabaseHelper helper =
-                new TodoDatabaseHelper(this);
+        DatabaseHelper helper =
+                new DatabaseHelper(this);
         SQLiteDatabase db = helper.getReadableDatabase();
-        Cursor cursor = db.rawQuery(
-                "SELECT COUNT(*) FROM tasks WHERE category = ?",
-                new String[]{categoryName});
-        int count = 0;
-        try {
-            if (cursor.moveToFirst()) {
-                count = cursor.getInt(0);
-            }
-        } finally {
-            cursor.close();
-            helper.close();
-        }
+        int categoryId = new TaskDao(db).findCategoryId(categoryName);
+        int count = categoryId == 0 ? 0
+                : new TaskCategoriesDao(db)
+                .findTaskIdsForCategory(categoryId).size();
+        helper.close();
         return count;
     }
 
@@ -235,38 +229,24 @@ public class CategoriesActivity extends Activity {
 
         categories.clear();
 
-        TodoDatabaseHelper helper =
-                new TodoDatabaseHelper(this);
-
-        // Chuyển dữ liệu SharedPreferences cũ sang SQLite
-        helper.migrateLegacyData();
-
-        SQLiteDatabase db = helper.getReadableDatabase();
-
-        Cursor cursor = db.rawQuery(
-                "SELECT * FROM categories ORDER BY id ASC",
-                null);
+        DatabaseHelper helper =
+                new DatabaseHelper(this);
 
         try {
-            while (cursor.moveToNext()) {
+            CategoriesDao dao =
+                    new CategoriesDao(helper.getReadableDatabase());
+            for (Categories stored : dao.findByUserId(0)) {
+                String name = stored.getName();
+                int index = categories.size();
+                String icon = icons[index % icons.length];
+                int color = colors[index % colors.length];
 
-                String name = cursor.getString(
-                        cursor.getColumnIndexOrThrow("name"));
-
-                String icon = cursor.getString(
-                        cursor.getColumnIndexOrThrow("icon"));
-
-                int color = cursor.getInt(
-                        cursor.getColumnIndexOrThrow("color"));
-
-                int tasks = cursor.getInt(
-                        cursor.getColumnIndexOrThrow("tasks"));
-
-                categories.add(new CategoryData(
-                        name, icon, color, tasks));
+                CategoryData category =
+                        new CategoryData(name, icon, color, 0);
+                category.id = stored.getId();
+                categories.add(category);
             }
         } finally {
-            cursor.close();
             helper.close();
         }
 
@@ -295,11 +275,22 @@ public class CategoriesActivity extends Activity {
 
 
     void hienThiCategories() {
-        layoutCategories.removeAllViews();
+        categoryAdapter.notifyDataSetChanged();
+    }
 
-        for (CategoryData c : categories) {
-            taoTheCategory(c);
-        }
+    void showCategoryMenu(View anchor, CategoryData category) {
+        PopupMenu menu = new PopupMenu(this, anchor);
+        menu.getMenu().add("Edit Category");
+        menu.getMenu().add("Delete Category");
+        menu.setOnMenuItemClickListener(choice -> {
+            if (choice.getTitle().toString().equals("Edit Category")) {
+                moDialog(category);
+            } else {
+                xoaCategory(category);
+            }
+            return true;
+        });
+        menu.show();
     }
 
     void taoTheCategory(CategoryData c) {

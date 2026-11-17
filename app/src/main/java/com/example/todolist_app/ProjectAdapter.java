@@ -35,23 +35,42 @@ public class ProjectAdapter extends RecyclerView.Adapter<ProjectAdapter.ViewHold
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-        ProjectsActivity.ProjectData project = projects.get(position);
+        ProjectsActivity.ProjectData project = visibleProjects().get(position);
         holder.name.setText(project.name);
-        holder.count.setText(project.getDone() + "/" + project.tasks.size()
-                + " tasks completed");
+        int total = 0;
+        int completed = 0;
+        for (Task task : TaskHelper.getTasks(holder.itemView.getContext())) {
+            if (project.name.equals(TaskHelper.projectName(
+                    holder.itemView.getContext(), task))) {
+                total++;
+                if (TaskHelper.isDone(task)) {
+                    completed++;
+                }
+            }
+        }
+        holder.count.setText(completed + "/" + total + " tasks completed");
         holder.deadline.setText(project.deadline.isEmpty() ? "" : "Due " + project.deadline);
         GradientDrawable dot = new GradientDrawable();
         dot.setShape(GradientDrawable.OVAL);
         dot.setColor(project.color);
         holder.color.setBackground(dot);
-        holder.progress.setProgress(project.getPercent());
+        holder.progress.setProgress(
+                total == 0 ? 0 : completed * 100 / total);
         holder.itemView.setOnClickListener(v -> listener.onProjectClick(project));
         holder.menu.setOnClickListener(v -> listener.onMenuClick(holder.menu, project));
     }
 
     @Override
     public int getItemCount() {
-        return projects.size();
+        return visibleProjects().size();
+    }
+
+    private List<ProjectsActivity.ProjectData> visibleProjects() {
+        List<ProjectsActivity.ProjectData> visible = new java.util.ArrayList<>();
+        for (ProjectsActivity.ProjectData project : projects) {
+            if (!project.archived) visible.add(project);
+        }
+        return visible;
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {

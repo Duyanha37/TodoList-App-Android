@@ -12,15 +12,19 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.PopupMenu;
 import android.widget.TextView;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ProjectDetailsActivity extends Activity {
 
     ProjectsActivity.ProjectData project;
 
-    LinearLayout layoutTasks;
+    RecyclerView layoutTasks;
+    final List<Task> visibleTasks = new ArrayList<>();
+    TaskAdapter taskAdapter;
     TextView txtTitle, txtPercent, txtTotal, txtDone, txtPending;
     TextView filterAll, filterTodo, filterProgress, filterDone;
 
@@ -47,6 +51,27 @@ public class ProjectDetailsActivity extends Activity {
         project = ProjectsActivity.projects.get(position);
 
         layoutTasks = findViewById(R.id.layoutTasks);
+        taskAdapter = new TaskAdapter(visibleTasks,
+                new TaskAdapter.Listener() {
+                    public void onTaskClick(Task task) {
+                        Intent intent = new Intent(ProjectDetailsActivity.this,
+                                TaskDetailsActivity.class);
+                        intent.putExtra("taskId", task.getId());
+                        startActivity(intent);
+                    }
+
+                    public void onTaskChecked(Task task, boolean checked) {
+                        TaskHelper.setCompleted(task, checked);
+                        TaskHelper.saveTask(ProjectDetailsActivity.this, task);
+                        showDetails();
+                    }
+
+                    public void onMenuClick(View anchor, Task task) {
+                        showTaskMenu(anchor, task);
+                    }
+                }, R.layout.item_task);
+        layoutTasks.setLayoutManager(new LinearLayoutManager(this));
+        layoutTasks.setAdapter(taskAdapter);
         txtTitle = findViewById(R.id.txtTitle);
         txtPercent = findViewById(R.id.txtPercent);
         txtTotal = findViewById(R.id.txtTotal);
@@ -96,22 +121,13 @@ public class ProjectDetailsActivity extends Activity {
     }
 
     // Lấy Task của Project từ SQLite
-    JSONArray getProjectTasks() {
-
-        JSONArray allTasks = TaskStore.getTasks(this);
-        JSONArray result = new JSONArray();
-
-        for (int i = 0; i < allTasks.length(); i++) {
-            JSONObject task = allTasks.optJSONObject(i);
-
-            if (task == null) continue;
-
-            if (project.name.equals(
-                    task.optString("project"))) {
-                result.put(task);
+    List<Task> getProjectTasks() {
+        List<Task> result = new ArrayList<>();
+        for (Task task : TaskHelper.getTasks(this)) {
+            if (project.name.equals(TaskHelper.projectName(this, task))) {
+                result.add(task);
             }
         }
-
         return result;
     }
 
@@ -120,17 +136,13 @@ public class ProjectDetailsActivity extends Activity {
 
         txtTitle.setText(project.name);
 
-        JSONArray tasks = getProjectTasks();
+        List<Task> tasks = getProjectTasks();
 
-        int total = tasks.length();
+        int total = tasks.size();
         int completed = 0;
 
-        for (int i = 0; i < tasks.length(); i++) {
-            JSONObject task = tasks.optJSONObject(i);
-
-            if (task != null && TaskStore.isDone(task)) {
-                completed++;
-            }
+        for (Task task : tasks) {
+            if (TaskHelper.isDone(task)) completed++;
         }
 
         int percent = total == 0
@@ -177,29 +189,55 @@ public class ProjectDetailsActivity extends Activity {
     }
 
     void showTasks() {
+        visibleTasks.clear();
+        List<Task> tasks = getProjectTasks();
 
-        layoutTasks.removeAllViews();
-
-        JSONArray tasks = getProjectTasks();
-
-        for (int i = 0; i < tasks.length(); i++) {
-
-            JSONObject task = tasks.optJSONObject(i);
-
-            if (task == null) continue;
-
-            String status = task.optString("status");
+        for (Task task : tasks) {
+            String status = task.getStatus();
 
             if (!currentFilter.equals("All") &&
                     !currentFilter.equals(status)) {
                 continue;
             }
 
-            addTaskCard(task);
+            visibleTasks.add(task);
         }
+        taskAdapter.notifyDataSetChanged();
     }
 
-    void addTaskCard(JSONObject task) {
+    void showTaskMenu(View anchor, Task task) {
+        PopupMenu menu = new PopupMenu(this, anchor);
+        menu.getMenu().add("Edit Task");
+        menu.getMenu().add("Not Started");
+        menu.getMenu().add("In Progress");
+        menu.getMenu().add("Completed");
+        menu.getMenu().add("Delete Task");
+        menu.setOnMenuItemClickListener(choice -> {
+            String action = choice.getTitle().toString();
+            if (action.equals("Edit Task")) {
+                Intent intent = new Intent(this, TaskFormActivity.class);
+                intent.putExtra("taskId", task.getId());
+                startActivity(intent);
+            } else if (action.equals("Delete Task")) {
+                new AlertDialog.Builder(this)
+                        .setTitle("Delete Task")
+                        .setMessage("Delete " + task.getTitle() + "?")
+                        .setNegativeButton("Cancel", null)
+                        .setPositiveButton("Delete", (d, w) -> {
+                            TaskHelper.deleteTask(this, task.getId());
+                            showDetails();
+                        }).show();
+            } else {
+                TaskHelper.setStatus(task, action);
+                TaskHelper.saveTask(this, task);
+                showDetails();
+            }
+            return true;
+        });
+        menu.show();
+    }
+
+    void addTaskCard(Task task) {
 
         View item = getLayoutInflater().inflate(
                 R.layout.item_task, layoutTasks, false);
@@ -219,21 +257,23 @@ public class ProjectDetailsActivity extends Activity {
         CheckBox check =
                 item.findViewById(R.id.checkTask);
 
-        String id = task.optString("id");
-        String name = task.optString("name");
-        String category = task.optString("category");
+        int id = task.getId();
+        String name = task.getTitle();
+        java.util.List<String> categories =
+                TaskHelper.categoryNames(this, task);
+        String category = categories.isEmpty() ? "" : categories.get(0);
 
-        boolean completed = TaskStore.isDone(task);
+        boolean completed = TaskHelper.isDone(task);
 
         txtName.setText(name);
 
         txtTime.setText(
-                task.optString("time") +
+                TaskHelper.formatDate(task.getDate().toString()) +
                         " · " + project.name);
 
         txtCategory.setText("● " + category);
         txtCategory.setTextColor(
-                TaskStore.categoryColor(category));
+                TaskHelper.categoryColor(category));
 
         check.setChecked(completed);
 
@@ -249,10 +289,9 @@ public class ProjectDetailsActivity extends Activity {
         check.setOnCheckedChangeListener((button, checked) -> {
 
             try {
-                task.put("status",
-                        checked ? "Completed" : "Not Started");
+                TaskHelper.setCompleted(task, checked);
 
-                TaskStore.saveTask(this, task);
+                TaskHelper.saveTask(this, task);
 
                 showDetails();
 
@@ -296,7 +335,7 @@ public class ProjectDetailsActivity extends Activity {
                             .setNegativeButton("Cancel", null)
                             .setPositiveButton("Delete", (d, w) -> {
 
-                                TaskStore.deleteTask(this, id);
+                                TaskHelper.deleteTask(this, id);
                                 showDetails();
 
                             }).show();
@@ -304,16 +343,9 @@ public class ProjectDetailsActivity extends Activity {
                     return true;
                 }
 
-                try {
-                    task.put("status", action);
-
-                    TaskStore.saveTask(this, task);
-
-                    showDetails();
-
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+                TaskHelper.setStatus(task, action);
+                TaskHelper.saveTask(this, task);
+                showDetails();
 
                 return true;
             });
@@ -365,7 +397,6 @@ public class ProjectDetailsActivity extends Activity {
                         }
 
                         String oldName = project.name;
-
                         if (!oldName.equals(newName)) {
 
                             for (ProjectsActivity.ProjectData p :
@@ -378,7 +409,6 @@ public class ProjectDetailsActivity extends Activity {
                                 }
                             }
 
-                            updateTaskProjectNames(oldName, newName);
                         }
 
                         project.name = newName;
@@ -393,27 +423,4 @@ public class ProjectDetailsActivity extends Activity {
         dialog.show();
     }
 
-    void updateTaskProjectNames(String oldName,
-                                String newName) {
-
-        JSONArray tasks = TaskStore.getTasks(this);
-
-        for (int i = 0; i < tasks.length(); i++) {
-
-            JSONObject task = tasks.optJSONObject(i);
-
-            if (task == null) continue;
-
-            if (oldName.equals(
-                    task.optString("project"))) {
-
-                try {
-                    task.put("project", newName);
-                    TaskStore.saveTask(this, task);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-    }
 }

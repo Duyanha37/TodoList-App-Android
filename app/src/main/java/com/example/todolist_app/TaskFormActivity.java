@@ -4,18 +4,17 @@ import android.app.*;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.os.Bundle;
-import android.content.*;
 import android.text.*;
 import android.view.*;
 import android.widget.*;
 
-import org.json.JSONObject;
 import java.util.Calendar;
 import java.text.SimpleDateFormat;
+import java.util.List;
 import java.util.Locale;
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 import java.util.ArrayList;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 
 public class TaskFormActivity extends Activity {
 
@@ -24,17 +23,17 @@ public class TaskFormActivity extends Activity {
     TextView statusTodo, statusProgress, statusDone;
     LinearLayout layoutCategories;
     Spinner spinnerProject;
-    ArrayList<String> projectNames = new ArrayList<>();
-    ArrayList<String> categoryNames = new ArrayList<>();
+    List<String> projectNames = new ArrayList<>();
+    List<String> categoryNames = new ArrayList<>();
     Button btnSaveTask;
 
-    String taskId = null;
-    String selectedDate = TaskStore.today(0);
+    int taskId = 0;
+    String selectedDate = TaskHelper.today(0);
     String selectedTime = "9:00 AM";
     String selectedCategory = "Work";
     String selectedStatus = "Not Started";
 
-    JSONObject editingTask;
+    Task editingTask;
 
     int dp(int n) {
         return (int)(n * getResources()
@@ -43,21 +42,14 @@ public class TaskFormActivity extends Activity {
 
     void loadProjects() {
         projectNames.clear();
-        TodoDatabaseHelper helper =
-                new TodoDatabaseHelper(this);
-        helper.migrateLegacyData();
-        SQLiteDatabase db = helper.getReadableDatabase();
-        Cursor cursor = db.rawQuery(
-                "SELECT name FROM projects " +
-                        "WHERE archived = 0 ORDER BY id ASC",
-                null);
-
+        DatabaseHelper helper =
+                new DatabaseHelper(this);
         try {
-            while (cursor.moveToNext()) {
-                projectNames.add(cursor.getString(0));
+            ProjectDao dao = new ProjectDao(helper.getReadableDatabase());
+            for (Project project : dao.findByUserId(0)) {
+                projectNames.add(project.getName());
             }
         } finally {
-            cursor.close();
             helper.close();
         }
 
@@ -67,25 +59,21 @@ public class TaskFormActivity extends Activity {
                         android.R.layout.simple_spinner_item,
                         projectNames);
         adapter.setDropDownViewResource(
-                android.R.layout.simple_spinner_dropdown_item);
+                android.R.layout.simple_spinner_dropdown_item); //Gán viewsource
         spinnerProject.setAdapter(adapter);
     }
 
-    void loadCategories() {
+    void loadCategories() { //Chưa rõ xử lý cái gì chỉ mỗi load
         categoryNames.clear();
-        TodoDatabaseHelper helper =
-                new TodoDatabaseHelper(this);
-        helper.migrateLegacyData();
-        SQLiteDatabase db = helper.getReadableDatabase();
-        Cursor cursor = db.rawQuery(
-                "SELECT name FROM categories ORDER BY id ASC",
-                null);
+        DatabaseHelper helper =
+                new DatabaseHelper(this);
         try {
-            while (cursor.moveToNext()) {
-                categoryNames.add(cursor.getString(0));
+            CategoriesDao dao =
+                    new CategoriesDao(helper.getReadableDatabase());
+            for (Categories category : dao.findByUserId(0)) {
+                categoryNames.add(category.getName());
             }
         } finally {
-            cursor.close();
             helper.close();
         }
     }
@@ -108,14 +96,14 @@ public class TaskFormActivity extends Activity {
         statusProgress = findViewById(R.id.statusProgress);
         statusDone = findViewById(R.id.statusDone);
 
-        taskId = getIntent().getStringExtra("taskId");
+        taskId = getIntent().getIntExtra("taskId", 0);
 
         loadProjects();
         loadCategories();
 
 
-        if (taskId != null) {
-            editingTask = TaskStore.find(this, taskId);
+        if (taskId != 0) {
+            editingTask = TaskHelper.find(this, taskId);
 
             if (editingTask == null) {
                 finish();
@@ -125,47 +113,52 @@ public class TaskFormActivity extends Activity {
             ((TextView)findViewById(R.id.txtFormTitle))
                     .setText("Edit Task");
 
-            edtName.setText(editingTask.optString("name"));
+            edtName.setText(editingTask.getTitle());
             edtDescription.setText(
-                    editingTask.optString("description"));
+                    editingTask.getDescription());
 
-            selectedDate = editingTask.optString("date");
-            selectedTime = editingTask.optString("time");
-            selectedCategory = editingTask.optString("category");
-            selectedStatus = editingTask.optString("status");
+            selectedDate = editingTask.getDate() == null
+                    ? TaskHelper.today(0) : editingTask.getDate().toString();
+            selectedTime = editingTask.getTime() == null
+                    ? "9:00 AM"
+                    : editingTask.getTime().format(
+                    DateTimeFormatter.ofPattern("h:mm a", Locale.US));
+            selectedStatus = editingTask.getStatus();
 
 
-            String oldProject = editingTask.optString("project");
-            if (!oldProject.isEmpty() &&
-                    !projectNames.contains(oldProject)) {
-                projectNames.add(oldProject);
-                ArrayAdapter<String> adapter =
-                        (ArrayAdapter<String>)
-                                spinnerProject.getAdapter();
-                adapter.notifyDataSetChanged();
-            }
-            for (int i = 0; i < projectNames.size(); i++) {
-                if (projectNames.get(i).equals(oldProject)) {
-                    spinnerProject.setSelection(i);
-                    break;
+            String oldProject = TaskHelper.projectName(this, editingTask);
+            if (!oldProject.isEmpty()) {
+                int selectedIndex = -1; //Đặt vị trí chọn là -1 (không chọn gì)
+                for (int i = 0; i < projectNames.size(); i++) {
+                    if (projectNames.get(i).equals(oldProject)) {
+                        selectedIndex = i;
+                        break;
+                    }
                 }
+                if(selectedIndex == -1) { //Nếu chưa tồn tại thì thêm mới
+                    projectNames.add(oldProject);
+                    ArrayAdapter<String> adapter =
+                            (ArrayAdapter<String>) spinnerProject.getAdapter();
+                    adapter.notifyDataSetChanged();
+                    selectedIndex = projectNames.size() - 1;
+                }
+                spinnerProject.setSelection(selectedIndex);
             }
-
         }
-        btnDate.setText("▢  " + TaskStore.formatDate(selectedDate));
+
+        btnDate.setText("▢  " + TaskHelper.formatDate(selectedDate));
         btnTime.setText("◷  " + selectedTime);
-        if (taskId == null &&
+        if (taskId == 0 &&
                 getIntent().hasExtra("categoryName")) {
             selectedCategory =
                     getIntent().getStringExtra("categoryName");
         }
         // Khi mở Add Task từ Project Details
-        if (taskId == null &&
+        if (taskId == 0 &&
                 getIntent().hasExtra("projectName")) {
             String projectName =
                     getIntent().getStringExtra("projectName");
             for (int i = 0; i < projectNames.size(); i++) {
-
                 if (projectNames.get(i).equals(projectName)) {
                     spinnerProject.setSelection(i);
                     break;
@@ -213,7 +206,7 @@ public class TaskFormActivity extends Activity {
                         .format(chosen.getTime());
 
                 btnDate.setText("▢  " +
-                        TaskStore.formatDate(selectedDate));
+                        TaskHelper.formatDate(selectedDate));
 
             }, cal.get(Calendar.YEAR),
                     cal.get(Calendar.MONTH),
@@ -306,22 +299,7 @@ public class TaskFormActivity extends Activity {
     }
 
     int getCategoryColor(String categoryName) {
-        TodoDatabaseHelper helper =
-                new TodoDatabaseHelper(this);
-        SQLiteDatabase db = helper.getReadableDatabase();
-        Cursor cursor = db.rawQuery(
-                "SELECT color FROM categories WHERE name = ?",
-                new String[]{categoryName});
-        int color = 0xFF888888;
-        try {
-            if (cursor.moveToFirst()) {
-                color = cursor.getInt(0);
-            }
-        } finally {
-            cursor.close();
-            helper.close();
-        }
-        return color;
+        return TaskHelper.categoryColor(categoryName);
     }
 
 
@@ -349,7 +327,7 @@ public class TaskFormActivity extends Activity {
     void saveTask() {
         String name = edtName.getText().toString().trim();
         if (name.isEmpty()) {
-            edtName.setError("Enter task name");
+            edtName.setError("Nhập tên Task");
             return;
         }
         String description = edtDescription.getText().toString().trim();
@@ -357,28 +335,24 @@ public class TaskFormActivity extends Activity {
         if (spinnerProject.getSelectedItem() != null) {
             project = spinnerProject.getSelectedItem().toString();
         }
-        JSONObject task;
+        Task task;
 
         if (editingTask == null) {
-            task = TaskStore.makeTask(
+            task = TaskHelper.makeTask(
                     name, description, selectedDate, selectedTime,
                     selectedCategory, project, selectedStatus);
         } else {
             task = editingTask;
-            try {
-                task.put("name", name);
-                task.put("description", description);
-                task.put("date", selectedDate);
-                task.put("time", selectedTime);
-                task.put("category", selectedCategory);
-                task.put("project", project);
-                task.put("status", selectedStatus);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            task.setTitle(name);
+            task.setDescription(description);
+            task.setDate(java.time.LocalDate.parse(selectedDate));
+            task.setTime(LocalTime.parse(selectedTime,
+                    DateTimeFormatter.ofPattern("h:mm a", Locale.US)));
+            task.setStatus(selectedStatus);
         }
 
-        TaskStore.saveTask(this, task);
+        TaskHelper.saveTask(this, task, selectedCategory, project);
+        NotificationScheduler.schedule(this, task);
         finish();
     }
 }

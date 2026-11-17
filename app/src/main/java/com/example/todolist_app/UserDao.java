@@ -69,7 +69,6 @@ public class UserDao {
         values.put("fullname", user.getFullname());
         values.put("password", user.getPassword());
         values.put("email", user.getEmail());
-        values.put("phone", user.getPhone());
         return values;
     }
 
@@ -79,7 +78,6 @@ public class UserDao {
         user.setFullname(cursor.getString(cursor.getColumnIndexOrThrow("fullname")));
         user.setPassword(cursor.getString(cursor.getColumnIndexOrThrow("password")));
         user.setEmail(cursor.getString(cursor.getColumnIndexOrThrow("email")));
-        user.setPhone(cursor.getString(cursor.getColumnIndexOrThrow("phone")));
         return user;
     }
 }

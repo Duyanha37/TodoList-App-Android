@@ -5,7 +5,6 @@ public class User {
     private String fullname;
     private String password;
     private String email;
-    private String phone;
 
     public String getId() {
         return id;
@@ -37,13 +36,5 @@ public class User {
 
     public void setEmail(String email) {
         this.email = email;
-    }
-
-    public String getPhone() {
-        return phone;
-    }
-
-    public void setPhone(String phone) {
-        this.phone = phone;
     }
 }

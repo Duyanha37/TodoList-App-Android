@@ -11,15 +11,19 @@ import android.widget.CheckBox;
 import android.widget.LinearLayout;
 import android.widget.PopupMenu;
 import android.widget.TextView;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
+import java.util.List;
 
 public class MainActivity extends Activity {
 
-    LinearLayout layoutTaskList;
+    RecyclerView layoutTaskList;
     TextView txtToday, txtUpcoming, txtOverdue;
     String filter = "All";
+    List<Task> tasks;
+    final List<Task> visibleTasks = new java.util.ArrayList<>();
+    TaskAdapter taskAdapter;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -27,25 +31,46 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
 
         layoutTaskList = findViewById(R.id.layoutTaskList);
+        taskAdapter = new TaskAdapter(visibleTasks,
+                new TaskAdapter.Listener() {
+                    @Override
+                    public void onTaskClick(Task task) {
+                        Intent intent = new Intent(MainActivity.this,
+                                TaskDetailsActivity.class);
+                        intent.putExtra("taskId", task.getId());
+                        startActivity(intent);
+                    }
+
+                    @Override
+                    public void onTaskChecked(Task task, boolean checked) {
+                        TaskHelper.setCompleted(task, checked);
+                        TaskHelper.saveTask(MainActivity.this, task);
+                        showTasks();
+                    }
+
+                    @Override
+                    public void onMenuClick(View anchor, Task task) {
+                        showTaskMenu(anchor, task);
+                    }
+                });
+        layoutTaskList.setLayoutManager(new LinearLayoutManager(this));
+        layoutTaskList.setAdapter(taskAdapter);
         txtToday = findViewById(R.id.txtTodayCount);
         txtUpcoming = findViewById(R.id.txtUpcomingCount);
         txtOverdue = findViewById(R.id.txtOverdueCount);
-
-        // Nút Add Task
+        // Gán event Addtask gọi TaskFormActivity
         findViewById(R.id.btnAddTask).setOnClickListener(v -> {
-            Intent intent = new Intent(
-                    MainActivity.this, TaskFormActivity.class);
-            startActivity(intent);
+            Intent newitn = new Intent (MainActivity.this, TaskFormActivity.class);
+            startActivity(newitn);
         });
 
-        // Nút Search
+        // Gán event Search gọi TaskSearchActivity
         findViewById(R.id.btnSearch).setOnClickListener(v -> {
-            Intent intent = new Intent(
-                    MainActivity.this, TaskSearchActivity.class);
-            startActivity(intent);
+            Intent newitn = new Intent(MainActivity.this, TaskSearchActivity.class);
+            startActivity(newitn);
         });
 
-        // Nút Filter
+        // Gán event Filter
         findViewById(R.id.btnFilter).setOnClickListener(v -> {
             String[] options = {
                     "All", "Not Started",
@@ -54,33 +79,33 @@ public class MainActivity extends Activity {
 
             new AlertDialog.Builder(this)
                     .setTitle("Filter Tasks")
-                    .setSingleChoiceItems(options, -1,
-                            (dialog, which) -> {
-                                filter = options[which];
-                                dialog.dismiss();
-                                showTasks();
+                    .setMultiChoiceItems(options, new boolean[options.length],
+                            (dialog, which, isChecked) -> { //truyền vào obj dialog và index which
+                                filter = options[which]; //Lấy option theo index
+                                dialog.dismiss(); //Đóng Dialog
+                                showTasks(); //Gọi showTasks
                             }).show();
         });
 
         // Home -> Projects
         findViewById(R.id.navProjects).setOnClickListener(v -> {
-            Intent intent = new Intent(
+            Intent newitn = new Intent(
                     MainActivity.this, ProjectsActivity.class);
-            startActivity(intent);
+            startActivity(newitn);
         });
 
         // Home -> Categories
         findViewById(R.id.navCategories).setOnClickListener(v -> {
-            Intent intent = new Intent(
+            Intent newitn = new Intent(
                     MainActivity.this, CategoriesActivity.class);
-            startActivity(intent);
+            startActivity(newitn);
         });
 
         // Home -> Profile
         findViewById(R.id.navProfile).setOnClickListener(v -> {
-            Intent intent = new Intent(
+            Intent newitn = new Intent(
                     MainActivity.this, ProfileActivity.class);
-            startActivity(intent);
+            startActivity(newitn);
         });
 
         showTasks();
@@ -98,20 +123,17 @@ public class MainActivity extends Activity {
 
     // Hiển thị danh sách Task
     void showTasks() {
-        layoutTaskList.removeAllViews();
-
-        JSONArray tasks = TaskStore.getTasks(this);
+        tasks = TaskHelper.getTasks(this);
+        visibleTasks.clear();
 
         int today = 0;
         int upcoming = 0;
         int overdue = 0;
 
-        for (int i = 0; i < tasks.length(); i++) {
-            JSONObject task = tasks.optJSONObject(i);
+        for (int i = 0; i < tasks.size(); i++) {
+            Task task = tasks.get(i);
 
-            if (task == null) continue;
-
-            String group = TaskStore.group(task);
+            String group = TaskHelper.group(task);
 
             if (group.equals("Today")) today++;
             if (group.equals("Upcoming")) upcoming++;
@@ -122,57 +144,47 @@ public class MainActivity extends Activity {
         txtUpcoming.setText("Upcoming\n" + upcoming);
         txtOverdue.setText("Overdue\n" + overdue);
 
-        String[] groups = {
-                "Overdue", "Today", "Upcoming"
-        };
-
+        String[] groups = {TaskHelper.GROUP_OVERDUE,
+                TaskHelper.GROUP_TODAY, TaskHelper.GROUP_UPCOMING};
         for (String group : groups) {
-
-            LinearLayout section = new LinearLayout(this);
-            section.setOrientation(LinearLayout.VERTICAL);
-
-            int shown = 0;
-
-            for (int i = 0; i < tasks.length(); i++) {
-                JSONObject task = tasks.optJSONObject(i);
-
-                if (task == null) continue;
-
-                boolean matchesFilter =
-                        filter.equals("All") ||
-                                filter.equals(task.optString("status"));
-
-                if (TaskStore.group(task).equals(group)
-                        && matchesFilter) {
-
-                    if (shown == 0) {
-                        TextView heading = new TextView(this);
-
-                        heading.setText(group);
-                        heading.setTextSize(14);
-                        heading.setTypeface(null,
-                                android.graphics.Typeface.BOLD);
-
-                        heading.setTextColor(
-                                group.equals("Overdue")
-                                        ? Color.RED : Color.BLACK);
-
-                        heading.setPadding(0, 18, 0, 12);
-
-                        section.addView(heading);
-                    }
-
-                    addTask(section, task);
-                    shown++;
+            for (Task task : tasks) {
+                boolean matchesFilter = filter.equals("All") ||
+                        filter.equals(task.getStatus());
+                if (group.equals(TaskHelper.group(task)) && matchesFilter) {
+                    visibleTasks.add(task);
                 }
             }
-
-            layoutTaskList.addView(section);
         }
+        taskAdapter.notifyDataSetChanged();
+    }
+
+    void showTaskMenu(View anchor, Task task) {
+        PopupMenu popup = new PopupMenu(this, anchor);
+        popup.getMenu().add(TaskHelper.isDone(task)
+                ? "Mark as Not Started" : "Mark as Complete");
+        popup.getMenu().add("Delete");
+        popup.setOnMenuItemClickListener(choice -> {
+            if (choice.getTitle().toString().equals("Delete")) {
+                new AlertDialog.Builder(this)
+                        .setTitle("Delete Task")
+                        .setMessage("Delete " + task.getTitle() + "?")
+                        .setNegativeButton("Cancel", null)
+                        .setPositiveButton("Delete", (d, w) -> {
+                            TaskHelper.deleteTask(this, task.getId());
+                            showTasks();
+                        }).show();
+            } else {
+                TaskHelper.toggleCompleted(task);
+                TaskHelper.saveTask(this, task);
+                showTasks();
+            }
+            return true;
+        });
+        popup.show();
     }
 
     // Hiển thị từng Task
-    void addTask(LinearLayout parent, JSONObject task) {
+    void addTask(LinearLayout parent, Task task) {
 
         View item = getLayoutInflater().inflate(
                 R.layout.item_task_home, parent, false);
@@ -192,18 +204,20 @@ public class MainActivity extends Activity {
         TextView menu =
                 item.findViewById(R.id.btnTaskMenu);
 
-        String id = task.optString("id");
-        boolean done = TaskStore.isDone(task);
+        int id = task.getId();
+        boolean done = TaskHelper.isDone(task);
 
-        name.setText(task.optString("name"));
+        name.setText(task.getTitle());
 
-        info.setText(task.optString("time") + " · " +
-                task.optString("project"));
+        info.setText(TaskHelper.formatDate(task.getDate().toString()) +
+                " · " + TaskHelper.projectName(this, task));
 
-        String cat = task.optString("category");
+        java.util.List<String> categories =
+                TaskHelper.categoryNames(this, task);
+        String cat = categories.isEmpty() ? "" : categories.get(0);
 
         category.setText("●  " + cat);
-        category.setTextColor(TaskStore.categoryColor(cat));
+        category.setTextColor(TaskHelper.categoryColor(cat));
 
         check.setChecked(done);
 
@@ -219,10 +233,8 @@ public class MainActivity extends Activity {
         // Tick hoàn thành Task
         check.setOnCheckedChangeListener((button, checked) -> {
             try {
-                task.put("status",
-                        checked ? "Completed" : "Not Started");
-
-                TaskStore.saveTask(this, task);
+                TaskHelper.setCompleted(task, checked);
+                TaskHelper.saveTask(this, task);
                 showTasks();
 
             } catch (Exception e) {
@@ -250,25 +262,18 @@ public class MainActivity extends Activity {
                     new AlertDialog.Builder(this)
                             .setTitle("Delete Task")
                             .setMessage("Delete " +
-                                    task.optString("name") + "?")
+                                    task.getTitle() + "?")
                             .setNegativeButton("Cancel", null)
                             .setPositiveButton("Delete", (d, w) -> {
-                                TaskStore.deleteTask(this, id);
+                                TaskHelper.deleteTask(this, id);
                                 showTasks();
                             }).show();
 
                 } else {
 
-                    try {
-                        task.put("status",
-                                done ? "Not Started" : "Completed");
-
-                        TaskStore.saveTask(this, task);
-                        showTasks();
-
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
+                    TaskHelper.toggleCompleted(task);
+                    TaskHelper.saveTask(this, task);
+                    showTasks();
                 }
 
                 return true;

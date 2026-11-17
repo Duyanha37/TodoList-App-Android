@@ -1,6 +1,7 @@
 package com.example.todolist_app;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 
 public class Task {
@@ -11,9 +12,14 @@ public class Task {
     private String description;
     private ArrayList<String> comments;
     private LocalDate date;
+    private LocalTime time;
     private String priority;
     private String status;
 
+    public Task() {
+        this.priority = "Medium";
+        this.status = "Not Started";
+    }
     public int getId() {
         return id;
     }
@@ -68,6 +74,14 @@ public class Task {
 
     public void setDate(LocalDate date) {
         this.date = date;
+    }
+
+    public LocalTime getTime() {
+        return time;
+    }
+
+    public void setTime(LocalTime time) {
+        this.time = time;
     }
 
     public String getPriority() {

@@ -13,9 +13,10 @@ import android.widget.CheckBox;
 import android.widget.LinearLayout;
 import android.widget.PopupMenu;
 import android.widget.TextView;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
+import java.util.List;
 
 public class CategoryDetailsActivity extends Activity {
 
@@ -24,7 +25,10 @@ public class CategoryDetailsActivity extends Activity {
     int categoryColor = 0xFF6051D8;
     String filter = "All";
 
-    LinearLayout layoutTasks, layoutFilters;
+    RecyclerView layoutTasks;
+    LinearLayout layoutFilters;
+    final List<Task> visibleTasks = new java.util.ArrayList<>();
+    TaskAdapter taskAdapter;
     TextView txtStats;
 
     int dp(int n) {
@@ -47,6 +51,27 @@ public class CategoryDetailsActivity extends Activity {
                 "categoryColor", categoryColor);
 
         layoutTasks = findViewById(R.id.layoutCategoryTasks);
+        taskAdapter = new TaskAdapter(visibleTasks,
+                new TaskAdapter.Listener() {
+                    public void onTaskClick(Task task) {
+                        Intent intent = new Intent(CategoryDetailsActivity.this,
+                                TaskDetailsActivity.class);
+                        intent.putExtra("taskId", task.getId());
+                        startActivity(intent);
+                    }
+
+                    public void onTaskChecked(Task task, boolean checked) {
+                        TaskHelper.setCompleted(task, checked);
+                        TaskHelper.saveTask(CategoryDetailsActivity.this, task);
+                        showTasks();
+                    }
+
+                    public void onMenuClick(View anchor, Task task) {
+                        showTaskMenu(anchor, task);
+                    }
+                });
+        layoutTasks.setLayoutManager(new LinearLayoutManager(this));
+        layoutTasks.setAdapter(taskAdapter);
         layoutFilters = findViewById(R.id.layoutCategoryFilters);
         txtStats = findViewById(R.id.txtCategoryStats);
 
@@ -141,35 +166,58 @@ public class CategoryDetailsActivity extends Activity {
     }
 
     void showTasks() {
-        layoutTasks.removeAllViews();
+        visibleTasks.clear();
 
-        JSONArray tasks = TaskStore.getTasks(this);
+        List<Task> tasks = TaskHelper.getTasks(this);
         int total = 0;
         int completed = 0;
 
-        for (int i = 0; i < tasks.length(); i++) {
-            JSONObject task = tasks.optJSONObject(i);
-            if (task == null) continue;
-            if (!categoryName.equals(
-                    task.optString("category"))) continue;
+        for (Task task : tasks) {
+            if (!TaskHelper.belongsToCategory(this, task, categoryName)) continue;
 
             total++;
-            if (TaskStore.isDone(task)) completed++;
+            if (TaskHelper.isDone(task)) completed++;
 
-            String group = TaskStore.group(task);
+            String group = TaskHelper.group(task);
             boolean matches = filter.equals("All") ||
                     filter.equals(group) ||
                     (filter.equals("Completed") &&
-                            TaskStore.isDone(task));
+                            TaskHelper.isDone(task));
 
-            if (matches) addTaskCard(task);
+            if (matches) visibleTasks.add(task);
         }
 
         txtStats.setText(total + " tasks · " +
                 completed + " completed");
+        taskAdapter.notifyDataSetChanged();
     }
 
-    void addTaskCard(JSONObject task) {
+    void showTaskMenu(View anchor, Task task) {
+        PopupMenu popup = new PopupMenu(this, anchor);
+        popup.getMenu().add(TaskHelper.isDone(task)
+                ? "Mark as Not Started" : "Mark as Complete");
+        popup.getMenu().add("Delete");
+        popup.setOnMenuItemClickListener(choice -> {
+            if (choice.getTitle().toString().equals("Delete")) {
+                new AlertDialog.Builder(this)
+                        .setTitle("Delete Task")
+                        .setMessage("Delete " + task.getTitle() + "?")
+                        .setNegativeButton("Cancel", null)
+                        .setPositiveButton("Delete", (d, w) -> {
+                            TaskHelper.deleteTask(this, task.getId());
+                            showTasks();
+                        }).show();
+            } else {
+                TaskHelper.setCompleted(task, true);
+                TaskHelper.saveTask(this, task);
+                showTasks();
+            }
+            return true;
+        });
+        popup.show();
+    }
+
+    void addTaskCard(Task task) {
         View item = getLayoutInflater().inflate(
                 R.layout.item_task_home,
                 layoutTasks, false);
@@ -180,12 +228,12 @@ public class CategoryDetailsActivity extends Activity {
         TextView category = item.findViewById(R.id.txtCategory);
         TextView menu = item.findViewById(R.id.btnTaskMenu);
 
-        boolean done = TaskStore.isDone(task);
-        String id = task.optString("id");
+        boolean done = TaskHelper.isDone(task);
+        int id = task.getId();
 
-        name.setText(task.optString("name"));
-        info.setText(task.optString("time") +
-                " · " + task.optString("project"));
+        name.setText(task.getTitle());
+        info.setText(TaskHelper.formatDate(task.getDate().toString()) +
+                " · " + TaskHelper.projectName(this, task));
         category.setText("●  " + categoryName);
         category.setTextColor(categoryColor);
 
@@ -198,9 +246,8 @@ public class CategoryDetailsActivity extends Activity {
 
         check.setOnCheckedChangeListener((v, checked) -> {
             try {
-                task.put("status", checked ?
-                        "Completed" : "Not Started");
-                TaskStore.saveTask(this, task);
+                TaskHelper.setCompleted(task, checked);
+                TaskHelper.saveTask(this, task);
                 showTasks();
             } catch (Exception e) {
                 e.printStackTrace();
@@ -218,20 +265,16 @@ public class CategoryDetailsActivity extends Activity {
                     new AlertDialog.Builder(this)
                             .setTitle("Delete Task")
                             .setMessage("Delete " +
-                                    task.optString("name") + "?")
+                                    task.getTitle() + "?")
                             .setNegativeButton("Cancel", null)
                             .setPositiveButton("Delete", (d, w) -> {
-                                TaskStore.deleteTask(this, id);
+                                TaskHelper.deleteTask(this, id);
                                 showTasks();
                             }).show();
                 } else {
-                    try {
-                        task.put("status", "Completed");
-                        TaskStore.saveTask(this, task);
-                        showTasks();
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
+                    TaskHelper.setCompleted(task, true);
+                    TaskHelper.saveTask(this, task);
+                    showTasks();
                 }
                 return true;
             });

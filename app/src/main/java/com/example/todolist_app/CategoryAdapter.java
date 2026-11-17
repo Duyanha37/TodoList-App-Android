@@ -13,6 +13,7 @@ import java.util.List;
 
 public class CategoryAdapter extends RecyclerView.Adapter<CategoryAdapter.ViewHolder> {
     public interface Listener {
+        void onCategoryClick(CategoriesActivity.CategoryData category);
         void onMenuClick(View anchor, CategoriesActivity.CategoryData category);
     }
 
@@ -42,6 +43,7 @@ public class CategoryAdapter extends RecyclerView.Adapter<CategoryAdapter.ViewHo
         holder.icon.setBackground(background);
         holder.name.setText(category.name);
         holder.count.setText(category.tasks + (category.tasks == 1 ? " task" : " tasks"));
+        holder.itemView.setOnClickListener(v -> listener.onCategoryClick(category));
         holder.menu.setOnClickListener(v -> listener.onMenuClick(holder.menu, category));
     }
 

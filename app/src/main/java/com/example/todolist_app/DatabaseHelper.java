@@ -6,7 +6,7 @@ import android.database.sqlite.SQLiteOpenHelper;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String DATABASE_NAME = "todolist.db";
-    private static final int DATABASE_VERSION = 4;
+    private static final int DATABASE_VERSION = 7;
 
     public DatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
@@ -24,6 +24,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 "id INTEGER PRIMARY KEY AUTOINCREMENT," +
                 "userId INTEGER NOT NULL DEFAULT 0," +
                 "name TEXT NOT NULL," +
+                "icon TEXT NOT NULL DEFAULT '💼'," +
+                "color INTEGER NOT NULL," +
                 "UNIQUE(userId, name))";
 
         String createTaskTable = "CREATE TABLE Task (" +
@@ -63,6 +65,12 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         if (oldVersion < 4) {
             db.execSQL("ALTER TABLE Task ADD COLUMN time TEXT NOT NULL DEFAULT '09:00'");
+        }
+        if (oldVersion < 6) {
+            db.execSQL("ALTER TABLE Categories ADD COLUMN icon TEXT NOT NULL DEFAULT '💼'");
+        }
+        if(oldVersion < 7) {
+            db.execSQL("ALTER TABLE Categories ADD COLUMN color INTEGER NOT NULL DEFAULT 0");
         }
     }
 

@@ -3,6 +3,7 @@ package com.example.todolist_app;
 import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
 
+import java.sql.SQLData;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -192,6 +193,16 @@ public final class TaskHelper {
         try {
             return new TaskDao(helper.getReadableDatabase())
                     .findCategoryNames(task.getId());
+        } finally {
+            helper.close();
+        }
+    }
+
+    public static int taskCountForCategory(Context context, int categoryId) {
+        DatabaseHelper helper = new DatabaseHelper(context);
+        SQLiteDatabase db = helper.getReadableDatabase();
+        try {
+            return new TaskCategoriesDao(db).countTasksForCategory(categoryId);
         } finally {
             helper.close();
         }

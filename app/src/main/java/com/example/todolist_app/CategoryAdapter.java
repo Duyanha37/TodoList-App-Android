@@ -13,14 +13,14 @@ import java.util.List;
 
 public class CategoryAdapter extends RecyclerView.Adapter<CategoryAdapter.ViewHolder> {
     public interface Listener {
-        void onCategoryClick(CategoriesActivity.CategoryData category);
-        void onMenuClick(View anchor, CategoriesActivity.CategoryData category);
+        void onCategoryClick(Categories category);
+        void onMenuClick(View anchor, Categories category);
     }
 
-    private final List<CategoriesActivity.CategoryData> categories;
+    private final List<Categories> categories;
     private final Listener listener;
 
-    public CategoryAdapter(List<CategoriesActivity.CategoryData> categories,
+    public CategoryAdapter(List<Categories> categories,
                            Listener listener) {
         this.categories = categories;
         this.listener = listener;
@@ -35,14 +35,14 @@ public class CategoryAdapter extends RecyclerView.Adapter<CategoryAdapter.ViewHo
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-        CategoriesActivity.CategoryData category = categories.get(position);
-        holder.icon.setText(category.icon);
+        Categories category = categories.get(position);
+        holder.icon.setText(category.getIcon());
         GradientDrawable background = new GradientDrawable();
         background.setShape(GradientDrawable.OVAL);
-        background.setColor(category.color);
+        background.setColor(category.getColor());
         holder.icon.setBackground(background);
-        holder.name.setText(category.name);
-        holder.count.setText(category.tasks + (category.tasks == 1 ? " task" : " tasks"));
+        holder.name.setText(category.getName());
+        holder.count.setText(String.valueOf(TaskHelper.taskCountForCategory(holder.itemView.getContext(), category.getId())));
         holder.itemView.setOnClickListener(v -> listener.onCategoryClick(category));
         holder.menu.setOnClickListener(v -> listener.onMenuClick(holder.menu, category));
     }

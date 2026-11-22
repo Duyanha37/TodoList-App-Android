@@ -53,6 +53,8 @@ public class CategoriesDao {
         values.put("id", category.getId());
         values.put("userId", category.getUserId());
         values.put("name", category.getName());
+        values.put("icon", category.getIcon());
+        values.put("color", category.getColor());
         return values;
     }
 
@@ -61,6 +63,8 @@ public class CategoriesDao {
         category.setId(cursor.getInt(cursor.getColumnIndexOrThrow("id")));
         category.setUserId(cursor.getInt(cursor.getColumnIndexOrThrow("userId")));
         category.setName(cursor.getString(cursor.getColumnIndexOrThrow("name")));
+        category.setIcon(cursor.getString(cursor.getColumnIndexOrThrow("icon")));
+        category.setColor(cursor.getInt(cursor.getColumnIndexOrThrow("color")));
         return category;
     }
 }

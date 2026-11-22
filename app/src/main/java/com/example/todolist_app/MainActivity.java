@@ -33,7 +33,7 @@ public class MainActivity extends Activity {
         userId = getIntent().getIntExtra("userId", 0);
 
         layoutTaskList = findViewById(R.id.layoutTaskList);
-        taskAdapter = new TaskAdapter(visibleTasks,
+        taskAdapter = new TaskAdapter(visibleTasks, //Gán mảng dữ liệu visibleTasks vào adapter để hiển thị
                 new TaskAdapter.Listener() {
                     @Override
                     public void onTaskClick(Task task) {
@@ -56,8 +56,8 @@ public class MainActivity extends Activity {
                         showTaskMenu(anchor, task);
                     }
                 });
-        layoutTaskList.setLayoutManager(new LinearLayoutManager(this));
-        layoutTaskList.setAdapter(taskAdapter);
+        layoutTaskList.setLayoutManager(new LinearLayoutManager(this)); //Cài đặt cách hiển thị cho RecyclerView là LinearLayoutManager (hiển thị theo chiều dọc)
+        layoutTaskList.setAdapter(taskAdapter); //Set adapter cho recyclerView
         txtToday = findViewById(R.id.txtTodayCount);
         txtUpcoming = findViewById(R.id.txtUpcomingCount);
         txtOverdue = findViewById(R.id.txtOverdueCount);
@@ -84,7 +84,7 @@ public class MainActivity extends Activity {
 
             new AlertDialog.Builder(this)
                     .setTitle("Filter Tasks")
-                    .setMultiChoiceItems(options, new boolean[options.length],
+                    .setMultiChoiceItems(options, new boolean[options.length], //Cấu trúc cơ bản của setMultiChoice 1 mảng giá trị, 1 mảng giá trị đang được chọn là bool và 1 listener
                             (dialog, which, isChecked) -> { //truyền vào obj dialog và index which
                                 filter = options[which]; //Lấy option theo index
                                 dialog.dismiss(); //Đóng Dialog
@@ -170,7 +170,8 @@ public class MainActivity extends Activity {
         PopupMenu popup = new PopupMenu(this, anchor);
         popup.getMenu().add(TaskHelper.isDone(task)
                 ? "Mark as Not Started" : "Mark as Complete");
-        popup.getMenu().add("Delete");
+        popup.getMenu().add("Delete"); //Khi add luôn là add item có title là chuỗi trong ()
+        //MenuItem item = popup.getMenu().add("Delete"); cách 2 gán luôn item vào 1 biến có thể dùng để gán sự kiện riêng
         popup.setOnMenuItemClickListener(choice -> {
             if (choice.getTitle().toString().equals("Delete")) {
                 new AlertDialog.Builder(this)

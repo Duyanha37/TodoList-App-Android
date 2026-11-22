@@ -15,7 +15,7 @@ public class TaskViewHolder extends RecyclerView.ViewHolder {
     final TextView menu;
     final View content;
 
-    public TaskViewHolder(@NonNull View itemView) {
+    public TaskViewHolder(@NonNull View itemView) {//Sử dụng adapter phải có 1 viewholder gắn liền với item để khi gọi đến item có thể biết đang chứa view nào
         super(itemView);
         check = itemView.findViewById(R.id.checkTask);
         name = itemView.findViewById(R.id.txtTaskName);

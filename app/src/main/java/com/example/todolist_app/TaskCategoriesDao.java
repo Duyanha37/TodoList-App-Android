@@ -57,4 +57,11 @@ public class TaskCategoriesDao {
         }
         return taskIds;
     }
+
+    public int countTasksForCategory(int categoryId) {
+        try (Cursor cursor = db.query("TaskCategories", new String[]{"COUNT(*)"}, "categoryId = ?",
+                new String[]{String.valueOf(categoryId)}, null, null, null)) {
+            return cursor.moveToFirst() ? cursor.getInt(0) : 0;
+        }
+    }
 }

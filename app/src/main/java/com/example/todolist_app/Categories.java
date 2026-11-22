@@ -7,7 +7,17 @@ public class Categories {
     private int id;
     private int userId;
     private String name;
-    private List<Task> taskList = new ArrayList<>();
+    private String icon;
+    private int color;
+
+    public Categories() {
+    }
+
+    public Categories(String name, String icon, int color) {
+        this.name = name;
+        this.icon = icon;
+        this.color = color;
+    }
 
     public int getId() {
         return id;
@@ -33,11 +43,19 @@ public class Categories {
         this.name = name;
     }
 
-    public List<Task> getTaskList() {
-        return taskList;
+    public String getIcon() {
+        return icon;
     }
 
-    public void setTaskList(List<Task> taskList) {
-        this.taskList = taskList;
+    public void setIcon(String icon) {
+        this.icon = icon;
+    }
+
+    public int getColor() {
+        return color;
+    }
+
+    public void setColor(int color) {
+        this.color = color;
     }
 }

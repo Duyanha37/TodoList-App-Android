@@ -11,6 +11,10 @@ import androidx.recyclerview.widget.RecyclerView;
 import java.util.List;
 
 public class TaskAdapter extends RecyclerView.Adapter<TaskViewHolder> {
+    /**
+     * Class interface yêu cầu đối tượng kế thừa nó phải có các method đã định nghĩa đây là các phuương thức để gán sự kiện cho
+     * các item trong RecyclerView và vì adapter yêu cầu khi khai báo cần 1 listener nên sẽ phải implement interface này để có thể gán sự kiện cho các item trong RecyclerView
+     */
     public interface Listener {
         void onTaskClick(Task task);
         void onTaskChecked(Task task, boolean checked);
